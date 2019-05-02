@@ -3,13 +3,14 @@
 Created on Wed May  1 10:52:07 2019
 Simple script to plot a map of the sites.
 Sites coordinates are stored in ./data/Instrument_Locs.csv
+Basemap https://data.linz.govt.nz/layer/51278-chart-nz-533-firth-of-thames/
 @author: Jordi
 """
 
 import csv
+import imageio
 import matplotlib.pyplot as plt
 import pyproj
-import imageio
 from mpl_toolkits import basemap
 
 # https://data.linz.govt.nz/layer/51278-chart-nz-533-firth-of-thames/
@@ -19,7 +20,7 @@ prj = pyproj.Proj("+proj=tmerc +lat_0=0.0 +lon_0=173.0 +k=0.9996 +x_0=1600000.0 
 m = basemap.Basemap(llcrnrlon=175.371866, llcrnrlat=-37.242242,
               urcrnrlon=175.471866, urcrnrlat=-37.134739,
               resolution='f', epsg='4326')
-#m.arcgisimage(service='World_Topo_Map', verbose= True, xpixels=800, dpi=200)
+# m.arcgisimage(service='World_Topo_Map', verbose= True, xpixels=800, dpi=200)
 plt.imshow(img, zorder=0, extent=[175.100085514,175.610142503,-37.2481637649,-36.6874800485])
 with open('./data/Instrument_Locs.csv', 'r') as f:
     reader = csv.DictReader(f)
@@ -27,9 +28,8 @@ with open('./data/Instrument_Locs.csv', 'r') as f:
     for row in reader:
         lon, lat = prj(float(row['Easting']), float(row['Northing']), inverse=True)
         print("Site %s coordinates lon-lat: %f, %f" % (row['SiteNum'], lon, lat))
-        x,y = m(lon, lat)
+        x, y = m(lon, lat)
         m.scatter(x, y, marker = 'o', color='r', zorder=5, edgecolors= 'black')
-        #ax.annotate("Site %i" % row['SiteNum'], (x, y))
         plt.text(x + .0025, y - .0013, "Site %s" % row['SiteNum'], fontsize=9, color='black')
 plt.savefig("./output/map.png", dpi=200)
 plt.show()
