@@ -17,7 +17,7 @@ Generate plots for all sites/concertos/variables:
 
 `$ python concerto.py`
 
-Check the results in the `./otuput` folder.
+Check the results in the `./output` folder.
 
 
 *Warning* you better have some memory available before running this puppy :D
