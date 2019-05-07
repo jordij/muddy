@@ -86,7 +86,7 @@ isort=4.3.16=py37_0
 itsdangerous=1.1.0=py37_0
 jdcal=1.4=py37_0
 jedi=0.13.3=py37_0
-jinja2=2.10=py37_0
+jinja2=2.10.1=py37_0
 jpeg=9b=hb83a4c4_2
 jsonschema=3.0.1=py37_0
 jupyter=1.0.0=py37_7
@@ -244,7 +244,7 @@ tornado=6.0.2=py37he774522_0
 tqdm=4.31.1=py37_1
 traitlets=4.3.2=py37_0
 unicodecsv=0.14.1=py37_0
-urllib3=1.24.1=py37_0
+urllib3=1.24.2=py37_0
 vc=14.1=h0510ff6_4
 vs2015_runtime=14.15.26706=h3a45250_0
 wcwidth=0.1.7=py37_0
