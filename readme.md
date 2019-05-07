@@ -19,7 +19,9 @@ Generate sites map:
 
 Generate daily separate plots for all sites/concertos/variables:
 
-`$ python concerto.py`
+`$ python concerto.py --plot_all=False`
+
+`plot_all` to `True` generates a single figure per day containing all available variables. Setting it to `False` generates a separate figure for pair of variable/day.
 
 Check all the generated assets in the `./output` folder.
 

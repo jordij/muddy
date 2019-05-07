@@ -11,7 +11,8 @@ variables = [
     "conductivitycelltemperature_00",
     "turbidity_00",
     "pressure_00",
-    "conductivity_00"
+    "conductivity_00",
+    "all"
 ]
 
 print ("The current working directory is %s" % path)
