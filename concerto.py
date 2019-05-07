@@ -3,6 +3,7 @@
 Daily plots for raw data in .rsk files.
 @author: @jordij
 """
+import gc
 import fire
 import math
 import matplotlib.dates as mdates
@@ -13,13 +14,13 @@ import pyrsktools
 import seaborn as sns
 
 rawpath = "D:/EE-FoT-May2017Expt/Concertos/RawData/"
-variables = [
+obs_vars = [
     ["conductivity_00", "mS/cm", "Conductivity"],
     ["temperature_00", "°C", "Temperature"],
     ["pressure_00", "dbar", "Pressure"],
     ["turbidity_00", "NTU", "Turbidity"],
     ["pressuretemperature_00", "°C", "Pressure temperature"],
-    ["conductivitycelltemperature_00", "°C", "Conductivity cell temperature"] 
+    ["conductivitycelltemperature_00", "°C", "Conductivity cell temperature"]
 ]
 devices = [
     {"name": "S1", "file": "066010_20170704_0850.rsk", "type": "floater"},
@@ -34,7 +35,7 @@ devices = [
 ]
 
 temperatures = [
-    ["temperature_00", "Temperature"], 
+    ["temperature_00", "Temperature"],
     ["pressuretemperature_00", "Pressure temperature"],
     ["conductivitycelltemperature_00", "Conductivity cell temperature"]
 ]
@@ -43,16 +44,15 @@ pressure = ["pressure_00", "Pressure", "dbar"]
 turbidity = ["turbidity_00", "Turbidity", "NTU"]
 
 
-
 def generate(plot_all=True):
     # Use seaborn style defaults and set the default figure size
     if plot_all:
-        sns.set(rc={'figure.figsize':(12, 12)})
+        sns.set(rc={'figure.figsize': (12, 12)})
     else:
-        sns.set(rc={'figure.figsize':(11, 4)})
+        sns.set(rc={'figure.figsize': (11, 4)})
 
-    for device in devices:
-        datapath = "%s%s" % (rawpath, device['file'])
+    for d in devices:
+        datapath = "%s%s" % (rawpath, d['file'])
         with pyrsktools.open(datapath) as rsk:
             # Pandas dataframe for the win
             df = pd.DataFrame(rsk.npsamples())
@@ -63,63 +63,73 @@ def generate(plot_all=True):
             # returns tuple (date, dataframe)
             dflist = [group for group in df.groupby(df.index.date)]
             nvars = 0
-            for variable in [conductivity, turbidity, pressure]:
-                if variable[0] in df.columns:
-                    print("%s for %s - %s \n" % (variable[1], device['name'], device['type']))
+            for v in [conductivity, turbidity, pressure]:
+                if v[0] in df.columns:
+                    print("%s for %s - %s \n" % (v[1], d['name'], d['type']))
                     nvars = nvars + 1
                 else:
-                    print("%s NOT available for %s - %s \n" % (conductivity[1], device['name'], device['type']))
+                    print("%s NOT available for %s - %s \n" % (
+                        conductivity[1], d['name'], d['type']))
             for temp in temperatures:
                 if temp[0] in df.columns:
                     nvars = nvars + 1
-                    print("%s for %s - %s \n" % (temp[1], device['name'], device['type']))
+                    print("%s for %s - %s \n" % (
+                        temp[1], d['name'], d['type']))
                 else:
-                    print("%s NOT available for %s - %s \n" % (temp[1], device['name'], device['type']))
-            
+                    print("%s NOT available for %s - %s \n" % (
+                        temp[1], d['name'], d['type']))
+
             for dfday_date, dfday in dflist:
                 if plot_all:  # plot all vars in the same figure
                     fig, axes = plt.subplots(ncols=1, nrows=nvars, sharex=True)
                     dfday.plot(subplots=True, linewidth=0.25, ax=axes)
                     idx = 0
                     for ax in axes:
-                        ax.xaxis.set_major_locator(mdates.HourLocator(byhour=range(0, 24, 1)))
-                        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M', tz=dfday.index.tz))
+                        ax.xaxis.set_major_locator(
+                            mdates.HourLocator(byhour=range(0, 24, 1)))
+                        ax.xaxis.set_major_formatter(
+                            mdates.DateFormatter('%H:%M', tz=dfday.index.tz))
                         ax.tick_params(axis='y', which='major', labelsize=10)
                         ax.tick_params(axis='y', which='minor', labelsize=8)
                         ax.tick_params(axis='x', which='major', labelsize=10)
                         ax.tick_params(axis='x', which='minor', labelsize=8)
-                        ax.set(xlabel='Time', ylabel=variables[idx][1])
-                        ax.legend([variables[idx][2]]);
+                        ax.set(xlabel='Time', ylabel=obs_vars[idx][1])
+                        ax.legend([obs_vars[idx][2]])
                         idx += 1
                     fig.autofmt_xdate()
                     fig.tight_layout()
                     plt.savefig(
                         "./output/%s/%s/all/%s_raw.png" % (
-                                device['name'],
-                                device['type'],
+                                d['name'],
+                                d['type'],
                                 str(dfday_date)),
                         dpi=300)
+                    fig.clf()
                     plt.close()
+                    del dfday
+                    gc.collect()
                 else:  # plot each variable separately
                     fig, axes = plt.subplots(ncols=1, nrows=nvars, sharex=True)
                     dfday.plot(subplots=True, linewidth=0.25, ax=axes)
                     idx = 0
                     for ax in axes:
-                        ax.xaxis.set_major_locator(mdates.HourLocator(byhour=range(0, 24, 1)))
-                        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M', tz=dfday.index.tz))
+                        ax.xaxis.set_major_locator(
+                            mdates.HourLocator(byhour=range(0, 24, 1)))
+                        ax.xaxis.set_major_formatter(
+                            mdates.DateFormatter('%H:%M', tz=dfday.index.tz))
                         ax.tick_params(axis='y', which='major', labelsize=10)
                         ax.tick_params(axis='y', which='minor', labelsize=8)
                         ax.tick_params(axis='x', which='major', labelsize=10)
                         ax.tick_params(axis='x', which='minor', labelsize=8)
-                        ax.set(xlabel='Time', ylabel=variables[idx][1])
-                        ax.legend([variables[idx][2]]);
+                        ax.set(xlabel='Time', ylabel=obs_vars[idx][1])
+                        ax.legend([obs_vars[idx][2]])
                         idx += 1
                     fig.autofmt_xdate()
                     fig.tight_layout()
                     plt.savefig(
                         "./output/%s/%s/%s_raw.png" % (
-                                device['name'],
-                                device['type'],
+                                d['name'],
+                                d['type'],
                                 str(dfday_date)),
                         dpi=300)
                     plt.close()
@@ -129,11 +139,16 @@ def generate(plot_all=True):
                             fig, ax = plt.subplots()
                             ax.plot(dfday.index, dfday[temp[0]], linewidth=0.5)
                             ax.xaxis.set_major_locator(mdates.HourLocator(byhour=range(0, 24, 1)))
-                            ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M', tz=dfday.index.tz))
-                            ax.tick_params(axis='y', which='major', labelsize=6)
-                            ax.tick_params(axis='y', which='minor', labelsize=4)
-                            ax.tick_params(axis='x', which='major', labelsize=6)
-                            ax.tick_params(axis='x', which='minor', labelsize=4)
+                            ax.xaxis.set_major_formatter(
+                                mdates.DateFormatter('%H:%M', tz=dfday.index.tz))
+                            ax.tick_params(
+                                axis='y', which='major', labelsize=6)
+                            ax.tick_params(
+                                axis='y', which='minor', labelsize=4)
+                            ax.tick_params(
+                                axis='x', which='major', labelsize=6)
+                            ax.tick_params(
+                                axis='x', which='minor', labelsize=4)
                             ax.set(
                                 xlabel='Time',
                                 ylabel='°C',
@@ -144,19 +159,22 @@ def generate(plot_all=True):
                             fig.tight_layout()
                             plt.savefig(
                                 "./output/%s/%s/%s/%s_raw.png" % (
-                                        device['name'],
-                                        device['type'],
+                                        d['name'],
+                                        d['type'],
                                         temp[0],
                                         str(dfday_date)),
                                 dpi=200)
                             plt.close()
-                    
+
                     # CONDUCTIVITY
                     if conductivity[0] in df.columns:
                         fig, ax = plt.subplots()
-                        ax.plot(dfday.index, dfday[conductivity[0]], linewidth=0.5)
-                        ax.xaxis.set_major_locator(mdates.HourLocator(byhour=range(0, 24, 1)))
-                        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M', tz=dfday.index.tz))
+                        ax.plot(
+                            dfday.index, dfday[conductivity[0]], linewidth=0.5)
+                        ax.xaxis.set_major_locator(
+                            mdates.HourLocator(byhour=range(0, 24, 1)))
+                        ax.xaxis.set_major_formatter(
+                            mdates.DateFormatter('%H:%M', tz=dfday.index.tz))
                         ax.tick_params(axis='y', which='major', labelsize=6)
                         ax.tick_params(axis='y', which='minor', labelsize=4)
                         ax.tick_params(axis='x', which='major', labelsize=6)
@@ -170,19 +188,22 @@ def generate(plot_all=True):
                         fig.tight_layout()
                         plt.savefig(
                             "./output/%s/%s/%s/%s_raw.png" % (
-                                    device['name'],
-                                    device['type'],
+                                    d['name'],
+                                    d['type'],
                                     conductivity[0],
                                     str(dfday_date)),
                             dpi=200)
                         plt.close()
-                    
+
                     # TURBIDITY
                     if turbidity[0] in df.columns:
                         fig, ax = plt.subplots()
-                        ax.plot(dfday.index, dfday[turbidity[0]], linewidth=0.5)
-                        ax.xaxis.set_major_locator(mdates.HourLocator(byhour=range(0, 24, 1)))
-                        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M', tz=dfday.index.tz))
+                        ax.plot(
+                            dfday.index, dfday[turbidity[0]], linewidth=0.5)
+                        ax.xaxis.set_major_locator(
+                            mdates.HourLocator(byhour=range(0, 24, 1)))
+                        ax.xaxis.set_major_formatter(
+                            mdates.DateFormatter('%H:%M', tz=dfday.index.tz))
                         ax.tick_params(axis='y', which='major', labelsize=6)
                         ax.tick_params(axis='y', which='minor', labelsize=4)
                         ax.tick_params(axis='x', which='major', labelsize=6)
@@ -196,19 +217,21 @@ def generate(plot_all=True):
                         fig.tight_layout()
                         plt.savefig(
                             "./output/%s/%s/%s/%s_raw.png" % (
-                                    device['name'],
-                                    device['type'],
+                                    d['name'],
+                                    d['type'],
                                     turbidity[0],
                                     str(dfday_date)),
                             dpi=200)
                         plt.close()
-                    
+
                     # PRESSURE
                     if pressure[0] in df.columns:
                         fig, ax = plt.subplots()
                         ax.plot(dfday.index, dfday[pressure[0]], linewidth=0.5)
-                        ax.xaxis.set_major_locator(mdates.HourLocator(byhour=range(0, 24, 1)))
-                        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M', tz=dfday.index.tz))
+                        ax.xaxis.set_major_locator(
+                            mdates.HourLocator(byhour=range(0, 24, 1)))
+                        ax.xaxis.set_major_formatter(
+                            mdates.DateFormatter('%H:%M', tz=dfday.index.tz))
                         ax.tick_params(axis='y', which='major', labelsize=6)
                         ax.tick_params(axis='y', which='minor', labelsize=4)
                         ax.tick_params(axis='x', which='major', labelsize=6)
@@ -222,8 +245,8 @@ def generate(plot_all=True):
                         fig.tight_layout()
                         plt.savefig(
                             "./output/%s/%s/%s/%s_raw.png" % (
-                                    device['name'],
-                                    device['type'],
+                                    d['name'],
+                                    d['type'],
                                     pressure[0],
                                     str(dfday_date)),
                             dpi=200)
@@ -231,4 +254,4 @@ def generate(plot_all=True):
 
 
 if __name__ == '__main__':
-   fire.Fire(generate)
+    fire.Fire(generate)
