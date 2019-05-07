@@ -5,16 +5,16 @@ Daily plots for raw data in .rsk files.
 """
 import gc
 import fire
-import math
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pyrsktools
 import seaborn as sns
+import tabulate
 
-rawpath = "D:/EE-FoT-May2017Expt/Concertos/RawData/"
-obs_vars = [
+RAWPATH = "D:/EE-FoT-May2017Expt/Concertos/RawData/"
+OBS_VARS = [
     ["conductivity_00", "mS/cm", "Conductivity"],
     ["temperature_00", "°C", "Temperature"],
     ["pressure_00", "dbar", "Pressure"],
@@ -22,7 +22,7 @@ obs_vars = [
     ["pressuretemperature_00", "°C", "Pressure temperature"],
     ["conductivitycelltemperature_00", "°C", "Conductivity cell temperature"]
 ]
-devices = [
+DEVICES = [
     {"name": "S1", "file": "066010_20170704_0850.rsk", "type": "floater"},
     {"name": "S2", "file": "065761_20170702_1030.rsk", "type": "floater"},
     {"name": "S4", "file": "065762_20170630_1524.rsk", "type": "floater"},
@@ -34,14 +34,31 @@ devices = [
     {"name": "S5", "file": "065820_20170704_0838.rsk", "type": "bedframe"}
 ]
 
-temperatures = [
+TEMPS = [
     ["temperature_00", "Temperature"],
     ["pressuretemperature_00", "Pressure temperature"],
     ["conductivitycelltemperature_00", "Conductivity cell temperature"]
 ]
-conductivity = ["conductivity_00", "Conductivity", "mS/cm"]
-pressure = ["pressure_00", "Pressure", "dbar"]
-turbidity = ["turbidity_00", "Turbidity", "NTU"]
+CONDUC = ["conductivity_00", "Conductivity", "mS/cm"]
+PRESS = ["pressure_00", "Pressure", "dbar"]
+TURBID = ["turbidity_00", "Turbidity", "NTU"]
+
+
+def devicesTable(dataframe, index):
+    nvars = 0
+    for v in [CONDUC, TURBID, PRESS]:
+        if v[0] in dataframe.columns:
+            DEVICES[index][v[1]] = "Yes"
+            nvars = nvars + 1
+        else:
+            DEVICES[v[1]] = "No"
+    for temp in TEMPS:
+        if temp[0] in dataframe.columns:
+            DEVICES[index][temp[1]] = "Yes"
+            nvars = nvars + 1
+        else:
+            DEVICES[index][temp[1]] = "No"
+    return nvars
 
 
 def generate(plot_all=True):
@@ -50,9 +67,9 @@ def generate(plot_all=True):
         sns.set(rc={'figure.figsize': (12, 12)})
     else:
         sns.set(rc={'figure.figsize': (11, 4)})
-
-    for d in devices:
-        datapath = "%s%s" % (rawpath, d['file'])
+    mainidx = 0
+    for d in DEVICES:
+        datapath = "%s%s" % (RAWPATH, d['file'])
         with pyrsktools.open(datapath) as rsk:
             # Pandas dataframe for the win
             df = pd.DataFrame(rsk.npsamples())
@@ -62,23 +79,7 @@ def generate(plot_all=True):
             # group data by day, month, year (unique day)
             # returns tuple (date, dataframe)
             dflist = [group for group in df.groupby(df.index.date)]
-            nvars = 0
-            for v in [conductivity, turbidity, pressure]:
-                if v[0] in df.columns:
-                    print("%s for %s - %s \n" % (v[1], d['name'], d['type']))
-                    nvars = nvars + 1
-                else:
-                    print("%s NOT available for %s - %s \n" % (
-                        conductivity[1], d['name'], d['type']))
-            for temp in temperatures:
-                if temp[0] in df.columns:
-                    nvars = nvars + 1
-                    print("%s for %s - %s \n" % (
-                        temp[1], d['name'], d['type']))
-                else:
-                    print("%s NOT available for %s - %s \n" % (
-                        temp[1], d['name'], d['type']))
-
+            nvars = devicesTable(df, mainidx)
             for dfday_date, dfday in dflist:
                 if plot_all:  # plot all vars in the same figure
                     fig, axes = plt.subplots(ncols=1, nrows=nvars, sharex=True)
@@ -93,16 +94,16 @@ def generate(plot_all=True):
                         ax.tick_params(axis='y', which='minor', labelsize=8)
                         ax.tick_params(axis='x', which='major', labelsize=10)
                         ax.tick_params(axis='x', which='minor', labelsize=8)
-                        ax.set(xlabel='Time', ylabel=obs_vars[idx][1])
-                        ax.legend([obs_vars[idx][2]])
+                        ax.set(xlabel='Time', ylabel=OBS_VARS[idx][1])
+                        ax.legend([OBS_VARS[idx][2]])
                         idx += 1
                     fig.autofmt_xdate()
                     fig.tight_layout()
                     plt.savefig(
                         "./output/%s/%s/all/%s_raw.png" % (
-                                d['name'],
-                                d['type'],
-                                str(dfday_date)),
+                            d['name'],
+                            d['type'],
+                            str(dfday_date)),
                         dpi=300)
                     fig.clf()
                     plt.close()
@@ -121,20 +122,20 @@ def generate(plot_all=True):
                         ax.tick_params(axis='y', which='minor', labelsize=8)
                         ax.tick_params(axis='x', which='major', labelsize=10)
                         ax.tick_params(axis='x', which='minor', labelsize=8)
-                        ax.set(xlabel='Time', ylabel=obs_vars[idx][1])
-                        ax.legend([obs_vars[idx][2]])
+                        ax.set(xlabel='Time', ylabel=OBS_VARS[idx][1])
+                        ax.legend([OBS_VARS[idx][2]])
                         idx += 1
                     fig.autofmt_xdate()
                     fig.tight_layout()
                     plt.savefig(
                         "./output/%s/%s/%s_raw.png" % (
-                                d['name'],
-                                d['type'],
-                                str(dfday_date)),
+                            d['name'],
+                            d['type'],
+                            str(dfday_date)),
                         dpi=300)
                     plt.close()
                     # TEMPERATURES
-                    for temp in temperatures:
+                    for temp in TEMPS:
                         if temp[0] in df.columns:
                             fig, ax = plt.subplots()
                             ax.plot(dfday.index, dfday[temp[0]], linewidth=0.5)
@@ -159,18 +160,18 @@ def generate(plot_all=True):
                             fig.tight_layout()
                             plt.savefig(
                                 "./output/%s/%s/%s/%s_raw.png" % (
-                                        d['name'],
-                                        d['type'],
-                                        temp[0],
-                                        str(dfday_date)),
+                                    d['name'],
+                                    d['type'],
+                                    temp[0],
+                                    str(dfday_date)),
                                 dpi=200)
                             plt.close()
 
                     # CONDUCTIVITY
-                    if conductivity[0] in df.columns:
+                    if CONDUC[0] in df.columns:
                         fig, ax = plt.subplots()
                         ax.plot(
-                            dfday.index, dfday[conductivity[0]], linewidth=0.5)
+                            dfday.index, dfday[CONDUC[0]], linewidth=0.5)
                         ax.xaxis.set_major_locator(
                             mdates.HourLocator(byhour=range(0, 24, 1)))
                         ax.xaxis.set_major_formatter(
@@ -181,25 +182,25 @@ def generate(plot_all=True):
                         ax.tick_params(axis='x', which='minor', labelsize=4)
                         ax.set(
                             xlabel="Time",
-                            ylabel=conductivity[2],
-                            title='%s %s' % (str(dfday_date), conductivity[1]))
+                            ylabel=CONDUC[2],
+                            title='%s %s' % (str(dfday_date), CONDUC[1]))
                         ax.margins(x=0.01)
                         fig.autofmt_xdate()
                         fig.tight_layout()
                         plt.savefig(
                             "./output/%s/%s/%s/%s_raw.png" % (
-                                    d['name'],
-                                    d['type'],
-                                    conductivity[0],
-                                    str(dfday_date)),
+                                d['name'],
+                                d['type'],
+                                CONDUC[0],
+                                str(dfday_date)),
                             dpi=200)
                         plt.close()
 
                     # TURBIDITY
-                    if turbidity[0] in df.columns:
+                    if TURBID[0] in df.columns:
                         fig, ax = plt.subplots()
                         ax.plot(
-                            dfday.index, dfday[turbidity[0]], linewidth=0.5)
+                            dfday.index, dfday[TURBID[0]], linewidth=0.5)
                         ax.xaxis.set_major_locator(
                             mdates.HourLocator(byhour=range(0, 24, 1)))
                         ax.xaxis.set_major_formatter(
@@ -210,24 +211,24 @@ def generate(plot_all=True):
                         ax.tick_params(axis='x', which='minor', labelsize=4)
                         ax.set(
                             xlabel="Time",
-                            ylabel=turbidity[2],
-                            title='%s %s' % (str(dfday_date), turbidity[1]))
+                            ylabel=TURBID[2],
+                            title='%s %s' % (str(dfday_date), TURBID[1]))
                         ax.margins(x=0.01)
                         fig.autofmt_xdate()
                         fig.tight_layout()
                         plt.savefig(
                             "./output/%s/%s/%s/%s_raw.png" % (
-                                    d['name'],
-                                    d['type'],
-                                    turbidity[0],
-                                    str(dfday_date)),
+                                d['name'],
+                                d['type'],
+                                TURBID[0],
+                                str(dfday_date)),
                             dpi=200)
                         plt.close()
 
                     # PRESSURE
-                    if pressure[0] in df.columns:
+                    if PRESS[0] in df.columns:
                         fig, ax = plt.subplots()
-                        ax.plot(dfday.index, dfday[pressure[0]], linewidth=0.5)
+                        ax.plot(dfday.index, dfday[PRESS[0]], linewidth=0.5)
                         ax.xaxis.set_major_locator(
                             mdates.HourLocator(byhour=range(0, 24, 1)))
                         ax.xaxis.set_major_formatter(
@@ -238,19 +239,23 @@ def generate(plot_all=True):
                         ax.tick_params(axis='x', which='minor', labelsize=4)
                         ax.set(
                             xlabel="Time",
-                            ylabel=pressure[2],
-                            title='%s %s' % (str(dfday_date), pressure[1]))
+                            ylabel=PRESS[2],
+                            title='%s %s' % (str(dfday_date), PRESS[1]))
                         ax.margins(x=0.01)
                         fig.autofmt_xdate()
                         fig.tight_layout()
                         plt.savefig(
                             "./output/%s/%s/%s/%s_raw.png" % (
-                                    d['name'],
-                                    d['type'],
-                                    pressure[0],
-                                    str(dfday_date)),
+                                d['name'],
+                                d['type'],
+                                PRESS[0],
+                                str(dfday_date)),
                             dpi=200)
                         plt.close()
+    # print clean table of sites vs available variables
+    header = DEVICES[0].keys()
+    rows = [x.values() for x in DEVICES]
+    print(tabulate.tabulate(rows, header))
 
 
 if __name__ == '__main__':

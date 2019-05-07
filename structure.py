@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 
-path = os.getcwd()  
+path = os.getcwd()
 
 sites = ["S1", "S2", "S3", "S4", "S5"]
 concertos = ["floater", "bedframe"]
@@ -15,7 +15,7 @@ variables = [
     "all"
 ]
 
-print ("The current working directory is %s" % path)
+print("The current working directory is %s" % path)
 
 file_path = "./output"
 directory = os.path.dirname(file_path)
