@@ -8,9 +8,12 @@ Basemap https://data.linz.govt.nz/layer/51278-chart-nz-533-firth-of-thames/
 
 import csv
 import imageio
+import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 import pyproj
+from matplotlib_scalebar.scalebar import ScaleBar
 from mpl_toolkits import basemap
+
 
 # Original layer in Koordinates
 # https://data.linz.govt.nz/layer/51278-chart-nz-533-firth-of-thames/
@@ -24,7 +27,7 @@ m = basemap.Basemap(llcrnrlon=175.371866, llcrnrlat=-37.242242,
                     resolution="f", epsg="4326")
 # m.arcgisimage(service="World_Topo_Map", verbose= True, xpixels=800, dpi=200)
 # set extent for background image map
-fig = plt.figure(figsize=(4,4))
+fig = plt.figure()
 plt.imshow(
     img,
     zorder=0,
@@ -35,6 +38,16 @@ plt.imshow(
         -36.6874800485
     ]
 )
+# scalebar and arrow pinting north
+x, y = m(175.4675, -37.14905)
+plt.text(x, y, u'\u25B2\nN',
+        horizontalalignment='center',
+        verticalalignment='bottom')
+fontprops = fm.FontProperties(size=10)
+scalebar = ScaleBar(100000, location="lower right", font_properties={"size":6})
+plt.gca().add_artist(scalebar)
+plt.tight_layout()
+
 with open("./data/Instrument_Locs.csv", "r") as f:
     reader = csv.DictReader(f)
     header = reader.fieldnames
@@ -45,12 +58,13 @@ with open("./data/Instrument_Locs.csv", "r") as f:
                     inverse=True)
         print("Site %s lon-lat: %f, %f" % (row["SiteNum"], lon, lat))
         x, y = m(lon, lat)
-        m.scatter(x, y, marker="o", color="r", zorder=5, edgecolors="black", s=50)
+        m.scatter(x, y, marker="o", color="r", zorder=5, edgecolors="black", s=30)
+        
         plt.text(
             x + .0025,
             y - .0013,
             "Site %s" % row["SiteNum"],
             fontsize=8,
             color="black")
-plt.savefig("./output/map.png", dpi=200)
+plt.savefig("./output/map.png", dpi=300, bbox_inches='tight')
 plt.show()
