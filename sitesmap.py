@@ -22,8 +22,8 @@ from mpl_toolkits import basemap
 img = imageio.imread("./data/lds-chart-nz-533-firth-of-thames-JPEG/chart-nz-533-firth-"
                      "of-thames.jpg")
 # Sites coordinates in NZTM, need lon-lat
-prj = pyproj.Proj("+proj=tmerc +lat_0=0.0 +lon_0=173.0 +k=0.9996 "
-                    "+x_0=1600000.0 +y_0=10000000.0 +datum=WGS84 +units=m")
+prj = pyproj.Proj("+proj=tmerc +lat_0=0 +lon_0=173 +k=0.9996 +x_0=1600000 +y_0=10000000"
+                    " +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
 m = basemap.Basemap(llcrnrlon=175.371866, llcrnrlat=-37.242242,
                     urcrnrlon=175.471866, urcrnrlat=-37.134739,
                     resolution="f", epsg="4326")

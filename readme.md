@@ -13,7 +13,7 @@ Create folder structure:
 
 `$ python structure.py`
 
-Generate sites map:
+Generate location and sites maps:
 
 `$ python sitesmap.py`
 
