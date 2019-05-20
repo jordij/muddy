@@ -13,9 +13,11 @@ Create folder structure:
 
 `$ python structure.py`
 
-Generate location and sites maps:
+Generate transect, elevation profile and sites maps (pngs in `/output/`):
 
 `$ python sitesmap.py`
+`$ python bathymetry.py`
+`$ python transect.py`
 
 Generate daily separate plots for all sites/concertos/variables:
 
