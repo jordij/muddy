@@ -1,5 +1,5 @@
 output/
-plots/
+plots*
 
 *gsw_matlab*/
 *rsktools*/
