@@ -11,21 +11,14 @@
 
 Create folder structure:
 
-`$ python structure.py`
+`$ python muddy.py create_struct`
 
 Generate transect, elevation profile and sites maps (pngs in `/output/`):
 
-`$ python sitesmap.py`
-`$ python bathymetry.py`
-`$ python transect.py`
+`$ python muddy.py create_maps`
 
-Generate daily separate plots for all sites/concertos/variables:
+Generate daily daily plots for all sites/concertos/variables:
 
-`$ python concerto.py --plot_all=False`
+`$ python muddy.py daily_plots`
 
-`plot_all` to `True` generates a single figure per day containing all available variables. Setting it to `False` generates a separate figure for pair of variable/day.
-
-Check all the generated assets in the `./output` folder.
-
-
-*Warning* you better have some memory available before running this puppy :D
+Check all the generated assets under the `./plots` folder.
