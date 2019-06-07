@@ -260,6 +260,81 @@ class Muddy(object):
     def create_struct(self):
         create_structure()
 
+    def avg_plots(self, origin="h5", site="all"):
+        if isinstance(origin, str):
+            if origin not in ["h5", "rsk"]:
+                raise ValueError("String 'h5' or 'rsk' value expected.")
+        else:
+            raise TypeError("String 'processed' or 'raw' value expected.")
+        if site not in SITES + ["all"]:
+            raise ValueError("String 'S(n)' n being 1 to 5 expected.")
+        if site != "all":  # just one site (1 to 5)
+            dsite = next(item for item in DEVICES if item["name"] == site)
+        self.__avg_plots__(origin, site)
+
+    def __avg_plots__(self, origin, site):
+        flatui = ["#9b59b6", "#3498db", "#95a5a6", "#e74c3c", "#34495e", "#2ecc71"]
+        # Use seaborn style defaults and set the default figure size
+        sns.set(rc={'figure.figsize': (12, 12)})
+        plot_vars_x = ["depth_00", "salinity_00"]
+        plot_vars_y = ["turbidity_00", "sd_turb"]
+        df_aggregate = None
+        for d in DEVICES:
+            dest_file = "%s%s_%s_avg.png" % (
+                    OUTPUT_PATH,
+                    d['name'],
+                    d['type'])
+            df = self.__get_dataframe__(d, origin)
+            # Resampling
+            df_resampled = df.resample('%ss' % d["interval"]).mean()  # in seconds
+            df_resampled["sd_turb"] = df.turbidity_00.resample('10min').std()
+            print(df_resampled.shape)
+            sns_plot = sns.pairplot(
+                df_resampled,
+                plot_kws={"s": 10, "linewidth": 0.5},
+                x_vars=plot_vars_x,
+                y_vars=plot_vars_y)
+            for i, v in enumerate(plot_vars_x):
+                sns_plot.axes[1, i].set_xlabel("%s (%s)" % (
+                    VARIABLES[v]["name"],
+                    VARIABLES[v]["units"]))
+            for i, v in enumerate(plot_vars_y):
+                try:
+                    sns_plot.axes[i, 0].set_ylabel("%s (%s)" % (
+                        VARIABLES[v]["name"],
+                        VARIABLES[v]["units"]))
+                except:
+                    sns_plot.axes[i, 0].set_ylabel("SD Turbidity (NTU)")
+            sns_plot.savefig(dest_file, dpi=300)
+            # add to aggregate by device type seabed/floater
+            df_resampled["Type"] = d["type"]
+            df_resampled["Name"] = d["name"]
+            if df_aggregate is None:
+                df_aggregate = df_resampled
+            else:
+                df_aggregate = df_aggregate.append(df_resampled)
+        # plot aggregate (all rows)
+        print(df_aggregate.shape)
+        sns_plot = sns.pairplot(
+            df_aggregate,
+            hue="Name",
+            plot_kws={"s": 10, "linewidth": 0.5, 'alpha': 0.6},
+            x_vars=plot_vars_x,
+            y_vars=plot_vars_y)
+        for i, v in enumerate(plot_vars_x):
+            sns_plot.axes[1, i].set_xlabel("%s (%s)" % (
+                VARIABLES[v]["name"],
+                VARIABLES[v]["units"]))
+        for i, v in enumerate(plot_vars_y):
+            try:
+                sns_plot.axes[i, 0].set_ylabel("%s (%s)" % (
+                    VARIABLES[v]["name"],
+                    VARIABLES[v]["units"]))
+            except:
+                sns_plot.axes[i, 0].set_ylabel("SD Turbidity (NTU)")
+        dest_file = "%saggregate_avg.png" % OUTPUT_PATH
+        sns_plot.savefig(dest_file, dpi=300)
+
 
 if __name__ == '__main__':
     fire.Fire(Muddy)
