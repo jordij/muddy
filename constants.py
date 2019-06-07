@@ -60,13 +60,78 @@ INST_TYPES = ["floater", "bedframe"]
 
 # devices per site
 DEVICES = [
-    {"name": "S1", "file": "066010_20170704_0850", "type": "floater"},
-    {"name": "S2", "file": "065761_20170702_1030", "type": "floater"},
-    {"name": "S4", "file": "065762_20170630_1524", "type": "floater"},
-    {"name": "S5", "file": "065760_20170702_1005", "type": "floater"},
-    {"name": "S1", "file": "066011_20170703_1431", "type": "bedframe"},
-    {"name": "S2", "file": "065818_20170701_0947", "type": "bedframe"},
-    {"name": "S3", "file": "065819_20170701_0953", "type": "bedframe"},
-    {"name": "S4", "file": "065821_20170703_1419", "type": "bedframe"},
-    {"name": "S5", "file": "065820_20170704_0838", "type": "bedframe"}
+    # floaters
+    {
+        "name": "S1",
+        "file": "066010_20170704_0850",
+        "type": "floater",
+        "freq": 6,  # hz
+        "burst_samples": 1024,  # per burst
+        "interval": 600  # between start of each burst
+    },
+    {
+        "name": "S2",
+        "file": "065761_20170702_1030",
+        "type": "floater",
+        "freq": 6,  # hz
+        "burst_samples": 1024,  # per burst
+        "interval": 600  # between start of each burst
+    },
+    {
+        "name": "S4",
+        "file": "065762_20170630_1524",
+        "type": "floater",
+        "freq": 6,  # hz
+        "burst_samples": 1024,  # per burst
+        "interval": 600  # between start of each burst
+    },
+    {
+        "name": "S5",
+        "file": "065760_20170702_1005",
+        "type": "floater",
+        "freq": 12,  # hz
+        "burst_samples": 1024,  # per burst
+        "interval": 600  # between start of each burst
+    },
+    # bedframes
+    {
+        "name": "S1",
+        "file": "066011_20170703_1431",
+        "type": "bedframe",
+        "freq": 6,  # hz
+        "burst_samples": 2048,  # per burst
+        "interval": 600  # between start of each burst
+    },
+    {
+        "name": "S2",
+        "file": "065818_20170701_0947",
+        "type": "bedframe",
+        "freq": 6,  # hz
+        "burst_samples": 2048,  # per burst
+        "interval": 600  # between start of each burst
+    },
+    {
+        "name": "S3",
+        "file": "065819_20170701_0953",
+        "type": "bedframe",
+        "freq": 6,  # hz
+        "burst_samples": 2048,  # per burst
+        "interval": 600  # between start of each burst
+    },
+    {
+        "name": "S4",
+        "file": "065821_20170703_1419",
+        "type": "bedframe",
+        "freq": 6,  # hz
+        "burst_samples": 2048,  # per burst
+        "interval": 600  # between start of each burst
+    },
+    {
+        "name": "S5",
+        "file": "065820_20170704_0838",
+        "type": "bedframe",
+        "freq": 6,  # hz
+        "burst_samples": 2048,  # per burst
+        "interval": 600  # between start of each burst
+    }
 ]

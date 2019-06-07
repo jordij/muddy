@@ -15,7 +15,7 @@ files = {
 };
 
 tstart = datenum(2017, 05, 11, 12, 0, 0);
-tend = datenum(2017, 06, 09, 12, 0, 0);
+tend = datenum(2017, 06, 10, 12, 0, 0);
 
 for i = 1 : length(files)
     fprintf('%s\n', files{i});

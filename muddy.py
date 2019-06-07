@@ -48,7 +48,7 @@ class Muddy(object):
             df.index = df.index.tz_convert('Pacific/Auckland')
         return df
 
-    def __plot_all__(self, df, nvars, dest_file):
+    def __plot_all__(self, df, date, nvars, dest_file):
         """ Plot all daily vars in same figure """
         fig, axes = plt.subplots(ncols=1, nrows=len(nvars), sharex=True)
         df.plot(subplots=True, linewidth=0.25, ax=axes)
@@ -63,7 +63,7 @@ class Muddy(object):
             ax.tick_params(axis='x', which='major', labelsize=10)
             ax.tick_params(axis='x', which='minor', labelsize=8)
             # set name and units for each var/axes
-            ax.set(xlabel='Time', ylabel=nvars[idx]["units"])
+            ax.set(xlabel='%s' % str(date), ylabel=nvars[idx]["units"])
             ax.legend([nvars[idx]["name"]])
             idx += 1
         fig.autofmt_xdate()
@@ -226,17 +226,15 @@ class Muddy(object):
         sns.set(rc={'figure.figsize': (12, 12)})
         for d in DEVICES:
             df = self.__get_dataframe__(d, origin)
-            # group data by day, month, year (unique day)
-            # returns tuple (date, dataframe)
             dflist = [group for group in df.groupby(df.index.date)]
             nvars = self.__get_variables__(df)
-            for dfday_date, dfday in dflist:
+            for date, dfday in dflist:
                 dest_file = "%s%s/%s/%s.png" % (
                     OUTPUT_PATH,
                     d['name'],
                     d['type'],
-                    str(dfday_date))
-                self.__plot_all__(dfday, nvars, dest_file)
+                    str(date))
+                self.__plot_all__(dfday, date, nvars, dest_file)
 
     def map_plots(self):
         plot_transect()
@@ -250,9 +248,9 @@ class Muddy(object):
                 raise ValueError("String 'processed' or 'raw' value expected.")
         else:
             raise TypeError("String 'processed' or 'raw' value expected.")
-        if site not in SITES:
+        if site not in SITES + ["all"]:
             raise ValueError("String 'S(n)' n being 1 to 5 expected.")
-        if site != "all":
+        if site != "all":  # just one site (1 to 5)
             dsite = next(item for item in DEVICES if item["name"] == site)
             self.__store_deviceH5__(dsite, origin)
         else:
