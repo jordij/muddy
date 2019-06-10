@@ -1,8 +1,13 @@
+"""" Constant variables """
+
+TIMEZONE = "Pacific/Auckland"
+
 OUTPUT_PATH = "./plots/"
 
 RAW_PATH = "D:/EE-FoT-May2017Expt/Concertos/RawData/"
 PROCESSED_PATH = "./data/rsk/"
-HD5_PATH = "./data/hd5/"
+H5_PATH = "./data/hd5/"
+AVG_FOLDER = "average"
 
 BATHYMETRY_PATH = "./data/transect_bathymetry.csv"
 
@@ -23,6 +28,8 @@ SITES_DISTANCES = [
 ]
 
 # rsk variables
+TURBIDITY = {"name": "Turbidity", "units": "NTU"}
+DEPTH = {"name": "Depth", "units": "m"}
 VARIABLES = {
     # Original variables
     "conductivity_00": {
@@ -37,9 +44,7 @@ VARIABLES = {
     "conductivitycelltemperature_00": {
         "name": "Conductivity cell temperature", "units": "°C"
     },
-    "turbidity_00": {
-        "name": "Turbidity", "units": "NTU"
-    },
+    "turbidity_00": TURBIDITY,
     "pressure_00": {
         "name": "Pressure", "units": "dbar"
     },
@@ -47,9 +52,7 @@ VARIABLES = {
     "seapressure_00": {
         "name": "Sea Pressure", "units": "dbar"
     },
-    "depth_00": {
-        "name": "Depth", "units": "m"
-    },
+    "depth_00": DEPTH,
     "salinity_00": {
         "name": "Salinity", "units": "PSU"
     }
@@ -135,3 +138,9 @@ DEVICES = [
         "interval": 600  # between start of each burst
     }
 ]
+
+
+PLOT_VARS = {
+    "x": ["depth_00", "salinity_00"],
+    "y": ["turbidity_00", "sd_turb"]
+}
