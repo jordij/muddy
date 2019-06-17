@@ -8,14 +8,27 @@ import maps
 class Muddy(object):
     """" Main Fire class """
 
-    def daily_plots(self, origin="h5"):
+    def obs_plots(self, origin="h5"):
+        """ Generate OBS calibration plots """
+        if isinstance(origin, str):
+            if origin not in ["h5", "rsk"]:
+                raise ValueError("String 'hd' or 'rsk' value expected.")
+        else:
+            raise TypeError("String 'hd' or 'rsk' value expected.")
+        plotter.plot_obs_calibration(origin)
+
+    def daily_plots(self, origin="h5", site="all"):
         """ Generate daily plots """
         if isinstance(origin, str):
             if origin not in ["h5", "rsk"]:
                 raise ValueError("String 'hd' or 'rsk' value expected.")
         else:
             raise TypeError("String 'hd' or 'rsk' value expected.")
-        plotter.plot_all_days(origin)
+        if site not in (SITES + ["all"]):
+            raise ValueError("String 'S(n)' n being 1 to 5 expected.")
+        if site != "all":  # just one site (1 to 5)
+            site = encoder.get_device(site)
+        plotter.plot_all_days(origin, site)
 
     def avg_plots(self, origin="h5", site="all"):
         if isinstance(origin, str):
@@ -23,11 +36,11 @@ class Muddy(object):
                 raise ValueError("String 'h5' or 'rsk' value expected.")
         else:
             raise TypeError("String 'processed' or 'raw' value expected.")
-        if site not in SITES + ["all"]:
+        if site not in (SITES + ["all"]):
             raise ValueError("String 'S(n)' n being 1 to 5 expected.")
         if site != "all":  # just one site (1 to 5)
-            site = next(item for item in DEVICES if item["name"] == site)
-        plotter.plot_all_avg(origin)
+            site = encoder.get_device(site)
+        plotter.plot_all_avg(origin, site)
 
     def map_plots(self):
         maps.plot_transect()

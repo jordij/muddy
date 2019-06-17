@@ -1,7 +1,8 @@
 import pandas as pd
 import pyrsktools
 
-from constants import RAW_PATH, PROCESSED_PATH, H5_PATH, VARIABLES, TIMEZONE
+from constants import (RAW_PATH, PROCESSED_PATH, H5_PATH, VARIABLES,
+                       TIMEZONE, DEVICES)
 
 
 def store_deviceH5(device, origin):
@@ -31,6 +32,16 @@ def get_df_nvars(dataframe):
         if v in VARIABLES.keys():
             nvars.append(VARIABLES[v])
     return nvars
+
+
+def get_device(site):
+    """ Get device from name - eg 'S1-f' or 'S2-bf' """
+    return next(item for item in DEVICES if item["name"] == site)
+
+
+def get_devices_by_type(dtype):
+    """ Get devices by type floater/bedframe """
+    return [item for item in DEVICES if item["type"] == dtype]
 
 
 def get_df(device, origin):
