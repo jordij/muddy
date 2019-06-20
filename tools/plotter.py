@@ -229,7 +229,7 @@ def site_avg_plot(origin=None, df=None, device=None,
 
 def plot_obs_calibration(origin):
     """ Plot all instr OBS calibration """
-    sns.set(rc={"figure.figsize": (12, 12)})
+    sns.set(rc={"figure.figsize": (9, 8)})
     for t in INST_TYPES:
         devs = encoder.get_devices_by_type(t)
         fig, ax = plt.subplots()
@@ -242,9 +242,8 @@ def plot_obs_calibration(origin):
                               VARIABLES["ssc"]["units"])
         ax.set(xlabel=xlabel, ylabel=ylabel)
         fig.legend(title='Sites', loc="center right")
-        # fig.tight_layout()
         dest_file = "%sOBS_calib_%s.png" % (OUTPUT_PATH, t)
-        fig.savefig(dest_file, dpi=300)
+        fig.savefig(dest_file, dpi=200)
         # free mem
         fig.clf()
         plt.close()
