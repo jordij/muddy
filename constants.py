@@ -77,9 +77,10 @@ DEVICES = [
         "site": "S1",
         "file": "066010_20170704_0850",
         "type": "floater",
-        "freq": 6,  # hz
-        "burst_samples": 1024,  # per burst
+        "freq": 6,  # Hz
+        "burst_samples": 2048,  # per burst
         "interval": 600,  # between start of each burst
+        "min_depth": 0.05,  # m
         "T": [
             0.365204377190083,
             175.693553881483,
@@ -102,9 +103,10 @@ DEVICES = [
         "site": "S2",
         "file": "065761_20170702_1030",
         "type": "floater",
-        "freq": 6,  # hz
+        "freq": 6,  # Hz
         "burst_samples": 1024,  # per burst
         "interval": 600,  # between start of each burst
+        "min_depth": 0.05,  # m
         "T": [
             0.637296553243671,
             214.082930151096,
@@ -127,9 +129,10 @@ DEVICES = [
         "site": "S4",
         "file": "065762_20170630_1524",
         "type": "floater",
-        "freq": 6,  # hz
+        "freq": 6,  # Hz
         "burst_samples": 1024,  # per burst
         "interval": 600,  # between start of each burst
+        "min_depth": 0.005,  # m
         "T": [
             0.626031610758164,
             191.844304522655,
@@ -150,9 +153,10 @@ DEVICES = [
         "site": "S5",
         "file": "065760_20170702_1005",
         "type": "floater",
-        "freq": 12,  # hz
+        "freq": 12,  # Hz
         "burst_samples": 1024,  # per burst
         "interval": 600,  # between start of each burst
+        "min_depth": 0.0,
         "T": [
             0.628385211292066,
             24.7638523241980,
@@ -182,9 +186,10 @@ DEVICES = [
         "site": "S1",
         "file": "066011_20170703_1431",
         "type": "bedframe",
-        "freq": 6,  # hz
+        "freq": 6,  # Hz
         "burst_samples": 2048,  # per burst
         "interval": 600,  # between start of each burst
+        "min_depth": 0.1,  # m
         "T": [  # OBS calibration
             0.478731970628837,
             41.6036219974082,
@@ -229,9 +234,10 @@ DEVICES = [
         "site": "S2",
         "file": "065818_20170701_0947",
         "type": "bedframe",
-        "freq": 6,  # hz
+        "freq": 6,  # Hz
         "burst_samples": 2048,  # per burst
         "interval": 600,  # between start of each burst
+        "min_depth": 0.005,  # m
         "T": [  # OBS calibration
             0.484052564688328,
             41.2126669704134,
@@ -276,9 +282,10 @@ DEVICES = [
         "site": "S3",
         "file": "065819_20170701_0953",
         "type": "bedframe",
-        "freq": 6,  # hz
+        "freq": 6,  # Hz
         "burst_samples": 2048,  # per burst
         "interval": 600,  # between start of each burst
+        "min_depth": 0.005,  # m
         "T": [  # OBS calibration
             0.422410145065686,
             43.3032571368376,
@@ -323,9 +330,10 @@ DEVICES = [
         "site": "S4",
         "file": "065821_20170703_1419",
         "type": "bedframe",
-        "freq": 6,  # hz
+        "freq": 6,  # Hz
         "burst_samples": 2048,  # per burst
         "interval": 600,  # between start of each burst
+        "min_depth": 0.0,  # m
         "T": [  # OBS calibration
             0.498243297801016,
             46.4604577599445,
@@ -370,9 +378,10 @@ DEVICES = [
         "site": "S5",
         "file": "065820_20170704_0838",
         "type": "bedframe",
-        "freq": 6,  # hz
+        "freq": 6,  # Hz
         "burst_samples": 2048,  # per burst
         "interval": 600,  # between start of each burst
+        "min_depth": 0.0,  # m
         "T": [  # OBS calibration
             0.570033800678927,
             48.9716198321136,

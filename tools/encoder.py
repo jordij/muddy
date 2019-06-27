@@ -1,8 +1,9 @@
+import numpy as np
 import pandas as pd
 import pyrsktools
 
-from constants import (RAW_PATH, PROCESSED_PATH, H5_PATH, VARIABLES,
-                       TIMEZONE, DEVICES)
+from constants import (RAW_PATH, PROCESSED_PATH, H5_PATH, AVG_FOLDER,
+                       VARIABLES, TIMEZONE, DEVICES)
 
 
 def store_deviceH5(device, origin):
@@ -23,6 +24,40 @@ def store_deviceH5(device, origin):
             "%s%s.h5" % (H5_PATH, device["file"]),
             key="df",
             mode="w")
+
+
+def store_bursts(origin, device):
+    """ Average bursts, Turbidity to SSC in a new DataFrame col """
+    if origin != "h5":
+        raise ValueError("Only H5 files can be used to obtain SSC.")
+    if device == "all":
+        for d in DEVICES:
+            write_SSC_device(d)
+    else:
+        write_SSC_device(d)
+
+
+def write_SSC_device(device):
+    datapath = "%s%s.h5" % (H5_PATH, device["file"])
+    print("Using %s as a dataframe source for %s %s" %
+          (datapath, device["name"], device["type"]))
+    df = pd.read_hdf(datapath, "df")
+    print(df.shape)
+    print("Any NaN values? -> %s" % str(df.isnull().T.any().T.sum()))
+    # Basic clean up
+    df = df[df.salinity_00.notnull() & (df.salinity_00 > 0)]
+    df = df[df.turbidity_00.notnull() & (df.turbidity_00 > 5)]
+    # df = df[df.depth_00 > device["min_depth"]]
+    # Turb to SSC
+    df['ssc'] = df.apply(
+        lambda x: np.interp(x, device["T"], device["SSC"]), axis=1)
+    # save to average HDF5
+    df.to_hdf(
+        "%s%s/%s.h5" % (H5_PATH, AVG_FOLDER, device["file"]),
+        key="df",
+        mode="w")
+    print(df.shape)
+    print("Any NaN values? -> %s" % str(df.isnull().T.any().T.sum()))
 
 
 def get_df_nvars(dataframe):

@@ -63,6 +63,19 @@ class Muddy(object):
             for d in DEVICES:
                 encoder.store_deviceH5(d, origin)
 
+    def store_burst_avg(self, origin="h5", site="all"):
+        """ Store resample and slightly cleaned data """
+        if isinstance(origin, str):
+            if origin not in ["h5", "rsk"]:
+                raise ValueError("String 'h5' or 'rsk' value expected.")
+        else:
+            raise TypeError("String 'processed' or 'raw' value expected.")
+        if site not in (SITES + ["all"]):
+            raise ValueError("String 'S(n)' n being 1 to 5 expected.")
+        if site != "all":  # just one site (1 to 5)
+            site = encoder.get_device(site)
+        encoder.store_bursts(origin, site)
+
     def create_struct(self):
         structure.create_structure()
 

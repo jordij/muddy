@@ -18,43 +18,44 @@ def plot_all_days(origin, site="all"):
     if site == "all":  # all instruments
         for d in DEVICES:
             df = encoder.get_df(d, origin)
-            dflist = [group for group in df.groupby(df.index.date)]
-            nvars = encoder.get_df_nvars(df)
-            for date, dfday in dflist:
-                dest_file = "%s%s/%s/%s.png" % (
-                    OUTPUT_PATH,
-                    d["site"],
-                    d["type"],
-                    str(date))
-                # daily_plot(dfday, date, nvars, dest_file)
-                dfr = dfday.resample("%ss" % d["interval"]).mean()
-                daily_plot_avg(dfr, date, dest_file, d["site"], d["type"])
+            plot_all_days_site(df, d)
     else:  # specific device eg S1-bf
         df = encoder.get_df(site, origin)
-        dflist = [group for group in df.groupby(df.index.date)]
-        nvars = encoder.get_df_nvars(df)
-        for date, dfday in dflist:
-            dest_file = "%s%s/%s/%s.png" % (
-                OUTPUT_PATH,
-                site["site"],
-                site["type"],
-                str(date))
-            # daily_plot(dfday, date, nvars, dest_file)
-            dest_file = "%s%s/%s/%s/%s.png" % (
-                OUTPUT_PATH,
-                site["site"],
-                site["type"],
-                AVG_FOLDER,
-                str(date))
-            dfr = dfday.resample("%ss" % site["interval"]).mean()
-            daily_plot_avg(dfr, date, dest_file, site["site"], site["type"])
-            # discard values under MIN_DEPTH and MIN_TURB
-            dfday = dfday[dfday["turbidity_00"] > MIN_TURB]
-            dfday = dfday[dfday["depth_00"] > MIN_DEPTH]
-            dfr = dfday.resample("%ss" % site["interval"]).mean()
-            parts = dest_file.split('.')
-            dest_file = ".".join(parts[:-1]) + '_clean' + '.' + parts[-1]
-            daily_plot_avg(dfr, date, dest_file, site["site"], site["type"])
+        plot_all_days_site(df, site)
+
+
+def plot_all_days_site(df, device):
+    dflist = [group for group in df.groupby(df.index.date)]
+    nvars = encoder.get_df_nvars(df)
+    for date, dfday in dflist:
+        # normal daily plot
+        dest_file = "%s%s/%s/%s.png" % (
+            OUTPUT_PATH,
+            device["site"],
+            device["type"],
+            str(date))
+        daily_plot(dfday, date, nvars, dest_file)
+        # burst average plots, one raw the other with cleaned data
+        # dest_file = "%s%s/%s/%s/%s.png" % (
+        #     OUTPUT_PATH,
+        #     device["site"],
+        #     device["type"],
+        #     AVG_FOLDER,
+        #     str(date))
+        # dfr = dfday.resample("%ss" % device["interval"]).mean()
+        # print(len(dfr))
+        # daily_plot_avg(dfr, date, dest_file, device["site"], device["type"])
+        # # discard values under MIN_DEPTH and MIN_TURB
+        # dfday = dfday[dfday.salinity_00.notnull() & (dfday.salinity_00 > 0)]
+        # print(len(dfday))
+        # dfday = dfday[dfday.turbidity_00.notnull() & (dfday.turbidity_00 > 5)]
+        # print(len(dfday))
+        # # dfday = dfday[dfday.depth_00 > device["min_depth"]]
+        # print(len(dfday))
+        # dfr = dfday.resample("%ss" % device["interval"]).mean()
+        # parts = dest_file.split('.')
+        # dest_file = ".".join(parts[:-1]) + '_clean' + '.' + parts[-1]
+        # daily_plot_avg(dfr, date, dest_file, device["site"], device["type"])
 
 
 def daily_plot(df, date, nvars, dest_file):
@@ -122,7 +123,6 @@ def daily_plot_avg(df, date, dest_file, site, instru):
     # free mem
     fig.clf()
     plt.close()
-    del df
     gc.collect()
 
 
