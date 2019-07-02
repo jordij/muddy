@@ -9,9 +9,8 @@ from scipy import fftpack
 
 class Burst(object):
     r"""
-    Represents a RbR Concerto depth_00 burst.
-    .. math::
-        \omega^2 = gk\tanh kh
+    Represents a RbR Concerto depth_00 burst
+
     Parameters
     ----------
     d : pandas.Series
@@ -44,14 +43,14 @@ class Burst(object):
             # Check depth is 0-aligned
             if round(self.d.mean(), 2) != 0:
                 self.d = self.d - self.d.mean()
-            self.__apply_fft__()
+            self._apply_fft()
         else:
-            self.__apply_avg_peak___()
+            self._apply_avg_peak()
 
-        self.__calc_lambda__()
-        self.__calc_K__()
+        self.set_lambda()
+        self.set_K()
 
-    def __apply_fft__(self):
+    def _apply_fft(self):
         """
             Apply scipy.fftpack.fft Fast Fourier Transform to signal self.d
 
@@ -71,7 +70,7 @@ class Burst(object):
         self.pp = 2*PI/self.pf  # peak period is 2*PI/peakfreq
         self.T = (self.pp / self.sr) * self.ts  # in seconds
 
-    def __apply_avg_peak___(self):
+    def _apply_avg_peak(self):
         """
             Apply peakutils.indexes to find relevant peaks in self.d, then average periods
 
@@ -83,39 +82,48 @@ class Burst(object):
         period_secs = (mean_period / self.sr) * (self.t[-1] - self.t[0]).seconds
         self.T = period_secs
 
-    def __calc_lambda__(self):
+    def set_lambda(self):
+        """
+        Iteratively calculates lambda from the dispersion relation.
+
+        Math: lambda = (G / 2*PI) * T^2 * tanh(2*PI*h/lambda)
+        """
         if self.pp:
             print("Mean period in peaks distance (0 - %s) is: %.2f" %
                   (str(self.sr), round(self.pp, 2)))
         print("T in seconds is: %.2f" % round(self.T, 2))
         print("Mean water depth in m is %.2f" % self.d_mean)
-
-        # Calculate lambda l starting from guess value
-        self.lambda_ = (G/(2 * PI)) * (self.T ** 2)
-        print("Estimated lambda at the beginning is: %.2f" % round(self.lambda_, 2))
+        # Starting from guess value (suits deep water waves better)
+        self._lambda = (G/(2 * PI)) * (self.T ** 2)
+        print("Estimated lambda at the beginning is: %.2f" % round(self._lambda, 2))
         # Iterative process
         err_tol = 1
         while err_tol > 1e-6:
-            lb = (G / (2 * PI)) * (self.T ** 2) * np.tanh(2 * PI * (self.d_mean / self.lambda_))
-            err_tol = np.abs(lb - self.lambda_)
-            self.lambda_ = lb
-        print("Converged value of lambda: %.2f" % round(self.lambda_, 2))
+            lb = (G / (2 * PI)) * (self.T ** 2) * np.tanh(2 * PI * (self.d_mean / self._lambda))
+            err_tol = np.abs(lb - self._lambda)
+            self._lambda = lb
+        print("Converged value of lambda: %.2f" % round(self._lambda, 2))
 
-    def __calc_K__(self):
-        # Calculate K-wave number
-        self.K = round((2 * PI) / self.lambda_, 2)
+    def set_K(self):
+        """
+            Calculate K-wave number
+
+            Math: K = (2*PI) / lambda
+        """
+        self.K = round((2 * PI) / self._lambda, 2)
         print("K wave number is %.2f" % self.K)
 
     def get_K(self):
         return self.K
 
     def get_lambda(self):
-        return self.lambda_
+        return self._lambda
 
     def plot_frequencies(self):
         """
-            Plot signal frequencies resulting from Fast Fourier Transform.
-            Note: only works if method is 'fourier' when defining Burst
+        Plot signal frequencies resulting from Fast Fourier Transform.
+
+        Note: only works if method is 'fourier' when defining Burst
         """
         fig, (ax0, ax1, ax2) = plt.subplots(3, 1, figsize=(12, 6))
         ax0.plot(self.t, self.d, color="blue", label="Signal")
@@ -140,6 +148,7 @@ class Burst(object):
     def plot_peaks(self):
         """
             Plot signal peaks resulting from peakutils peak finder.
+
             Note: only works if method is 'peaks' when defining Burst
         """
         fig, ax = plt.subplots(1, 1, figsize=(12, 6))

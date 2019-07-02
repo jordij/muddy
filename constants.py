@@ -59,26 +59,28 @@ VARIABLES = {
     "salinity_00": {
         "name": "Salinity", "units": "PSU"
     },
+    # interpolated by OBS calibr.
     "ssc": {
         "name": "SSC", "units": "mg/l"
+    },
+    "ssc_sd": {
+        "name": "SSC Standard Dev.", "units": "mg/l"
     }
 }
 
-SITES = [
-    "S1-f", "S1-bf", "S2-f", "S2-bf", "S3-bf", "S4-f", "S4-bf", "S5-f", "S5-bf"
-]
+SITES = ["S1", "S2", "S3", "S4", "S5"]
+
 INST_TYPES = ["floater", "bedframe"]
 
 # devices per site
 DEVICES = [
     # floaters
     {
-        "name": "S1-f",
         "site": "S1",
         "file": "066010_20170704_0850",
         "type": "floater",
         "freq": 6,  # Hz
-        "burst_samples": 2048,  # per burst
+        "burst_samples": 1024,  # per burst
         "interval": 600,  # between start of each burst
         "min_depth": 0.05,  # m
         "T": [
@@ -99,7 +101,6 @@ DEVICES = [
         ]
     },
     {
-        "name": "S2-f",
         "site": "S2",
         "file": "065761_20170702_1030",
         "type": "floater",
@@ -125,7 +126,6 @@ DEVICES = [
         ]
     },
     {
-        "name": "S4-f",
         "site": "S4",
         "file": "065762_20170630_1524",
         "type": "floater",
@@ -149,7 +149,6 @@ DEVICES = [
         ]
     },
     {
-        "name": "S5-f",
         "site": "S5",
         "file": "065760_20170702_1005",
         "type": "floater",
@@ -182,7 +181,6 @@ DEVICES = [
     },
     # bedframes
     {
-        "name": "S1-bf",
         "site": "S1",
         "file": "066011_20170703_1431",
         "type": "bedframe",
@@ -230,7 +228,6 @@ DEVICES = [
         ]
     },
     {
-        "name": "S2-bf",
         "site": "S2",
         "file": "065818_20170701_0947",
         "type": "bedframe",
@@ -278,7 +275,6 @@ DEVICES = [
         ]
     },
     {
-        "name": "S3-bf",
         "site": "S3",
         "file": "065819_20170701_0953",
         "type": "bedframe",
@@ -326,7 +322,6 @@ DEVICES = [
         ]
     },
     {
-        "name": "S4-bf",
         "site": "S4",
         "file": "065821_20170703_1419",
         "type": "bedframe",
@@ -374,7 +369,6 @@ DEVICES = [
         ]
     },
     {
-        "name": "S5-bf",
         "site": "S5",
         "file": "065820_20170704_0838",
         "type": "bedframe",
@@ -422,9 +416,3 @@ DEVICES = [
         ]
     }
 ]
-
-
-PLOT_VARS = {
-    "x": ["depth_00", "salinity_00"],
-    "y": ["turbidity_00", "sd_turb"]
-}

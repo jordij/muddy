@@ -1,6 +1,6 @@
 import fire
 
-from constants import DEVICES, SITES
+from constants import DEVICES, SITES, INST_TYPES
 from tools import plotter, encoder, structure
 import maps
 
@@ -8,73 +8,63 @@ import maps
 class Muddy(object):
     """" Main Fire class """
 
-    def obs_plots(self, origin="h5"):
+    def plot_OBS_calibration(self):
         """ Generate OBS calibration plots """
-        if isinstance(origin, str):
-            if origin not in ["h5", "rsk"]:
-                raise ValueError("String 'hd' or 'rsk' value expected.")
-        else:
-            raise TypeError("String 'hd' or 'rsk' value expected.")
-        plotter.plot_obs_calibration(origin)
+        plotter.plot_obs_calibration()
 
-    def daily_plots(self, origin="h5", site="all"):
+    def daily_plots(self, origin="h5", site="all", dtype="floater"):
         """ Generate daily plots """
         if isinstance(origin, str):
             if origin not in ["h5", "rsk"]:
-                raise ValueError("String 'hd' or 'rsk' value expected.")
+                raise ValueError("Origin 'h5' or 'rsk' value expected.")
         else:
-            raise TypeError("String 'hd' or 'rsk' value expected.")
+            raise TypeError("Origin 'h5' or 'rsk' value expected.")
         if site not in (SITES + ["all"]):
             raise ValueError("String 'S(n)' n being 1 to 5 expected.")
-        if site != "all":  # just one site (1 to 5)
-            site = encoder.get_device(site)
-        plotter.plot_all_days(origin, site)
+        if dtype not in INST_TYPES:
+            raise ValueError("Type floater or bedframe expected.")
 
-    def avg_plots(self, origin="h5", site="all"):
-        if isinstance(origin, str):
-            if origin not in ["h5", "rsk"]:
-                raise ValueError("String 'h5' or 'rsk' value expected.")
+        if site != "all":  # just one instrument
+            d = encoder.create_device(site, dtype, origin)
+            d.plot_days()
         else:
-            raise TypeError("String 'processed' or 'raw' value expected.")
+            for t in INST_TYPES:  # all instruments
+                devs = encoder.create_devices_by_type(t, origin)
+                for d in devs:
+                    d.plot_days()
+
+    def avg_plots(self, site="all", dtype="floater"):
         if site not in (SITES + ["all"]):
             raise ValueError("String 'S(n)' n being 1 to 5 expected.")
-        if site != "all":  # just one site (1 to 5)
-            site = encoder.get_device(site)
-        plotter.plot_all_avg(origin, site)
+        if dtype not in INST_TYPES:
+            raise ValueError("Type floater or bedframe expected.")
+
+        if site != "all":  # just one instrument
+            d = encoder.create_device(site, dtype, "h5")
+            d.plot_avg()
+        else:
+            for t in INST_TYPES:  # all instruments
+                devs = encoder.create_devices_by_type(t, "h5")
+                for d in devs:
+                    d.plot_avg()
 
     def map_plots(self):
         maps.plot_transect()
         maps.plot_sites()
         maps.plot_bathymetry()
 
-    def storeH5(self, origin="processed", site="all"):
-        """ Store raw data in h5 to read/write heaps faster than .rsk"""
-        if isinstance(origin, str):
-            if origin not in ["processed", "raw"]:
-                raise ValueError("String 'processed' or 'raw' value expected.")
-        else:
-            raise TypeError("String 'processed' or 'raw' value expected.")
+    def RSKtoH5(self, site="all", dtype="floater"):
+        """ Store RSK data in h5 """
         if site not in SITES + ["all"]:
             raise ValueError("String 'S(n)' n being 1 to 5 expected.")
         if site != "all":  # just one site (1 to 5)
-            dsite = next(item for item in DEVICES if item["name"] == site)
-            encoder.store_deviceH5(dsite, origin)
+            d = encoder.create_device(site, dtype, "rsk")
+            d.save_H5(avg=False)
         else:
-            for d in DEVICES:
-                encoder.store_deviceH5(d, origin)
-
-    def store_burst_avg(self, origin="h5", site="all"):
-        """ Store resample and slightly cleaned data """
-        if isinstance(origin, str):
-            if origin not in ["h5", "rsk"]:
-                raise ValueError("String 'h5' or 'rsk' value expected.")
-        else:
-            raise TypeError("String 'processed' or 'raw' value expected.")
-        if site not in (SITES + ["all"]):
-            raise ValueError("String 'S(n)' n being 1 to 5 expected.")
-        if site != "all":  # just one site (1 to 5)
-            site = encoder.get_device(site)
-        encoder.store_bursts(origin, site)
+            for t in INST_TYPES:  # all instruments
+                devs = encoder.create_devices_by_type(t, "h5")
+                for d in devs:
+                    d.save_H5(avg=False)
 
     def create_struct(self):
         structure.create_structure()

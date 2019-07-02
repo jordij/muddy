@@ -22,3 +22,7 @@ Generate daily daily plots for all sites/concertos/variables:
 `$ python muddy.py daily_plots`
 
 Check all the generated assets under the `./plots` folder.
+
+`$ python muddy.py avg_plots`
+
+Check all the generated assets under the `./plots/S{n}/average/` folder.
