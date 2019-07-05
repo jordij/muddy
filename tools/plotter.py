@@ -6,8 +6,7 @@ import seaborn as sns
 from pandas.plotting import register_matplotlib_converters
 
 from tools import encoder
-from constants import (DEVICES, OUTPUT_PATH, PLOT_VARS, VARIABLES, AVG_FOLDER,
-                       MIN_DEPTH, MIN_TURB, INST_TYPES)
+from constants import OUTPUT_PATH, VARIABLES, INST_TYPES
 
 register_matplotlib_converters()
 

@@ -29,6 +29,7 @@ SITES_DISTANCES = [
 
 MIN_DEPTH = 0.05  # in m, always >
 MIN_TURB = 0  # in NTU, always >
+Z_ELEVATION = 0.15  # 15cm - elevation above the seabed of pressure sensor
 
 # rsk variables
 TURBIDITY = {"name": "Turbidity", "units": "NTU"}

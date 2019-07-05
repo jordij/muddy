@@ -5,7 +5,7 @@ import pyrsktools
 
 from burst import Burst
 from constants import (H5_PATH, OUTPUT_PATH, PROCESSED_PATH, VARIABLES,
-                       TIMEZONE, AVG_FOLDER)
+                       TIMEZONE, AVG_FOLDER, Z_ELEVATION)
 from tools import plotter
 
 
@@ -47,6 +47,7 @@ class Device(object):
         self.f = f
         self.sr = sr
         self.i = i
+        self.z = Z_ELEVATION
         if len(T) != len(SSC):
             raise ValueError("T and SSC must have the same length")
         self.T = T
@@ -96,15 +97,17 @@ class Device(object):
         print("Any NaN values? -> %s" % str(self.df.isnull().T.any().T.sum()))
         self._set_vars()
 
-    def set_ssc(self, save=False):
+    def set_ssc(self):
         """
         Calculate SSC from linear interpolation of self.T with self.SSC
         """
         if "ssc" not in self.df.columns:
             self.df["ssc"] = self.df.apply(
-                lambda row: np.interp(row.turbidity_00, self.T, self.SSC), axis=1)
-            if save:
-                self.save_to_file()
+                lambda r: np.interp(
+                    r.turbidity_00,
+                    self.T,
+                    self.SSC),
+                axis=1)
 
     def save_H5(self, avg=False):
         """
@@ -129,9 +132,8 @@ class Device(object):
         Get Burst from start to end dates
 
         """
-        dfburst = self.df[start:end]
-        ts = (dfburst.index[-1] - dfburst.index[0]).seconds
-        return Burst(dfburst.depth_00, dfburst.index, self.f, ts, method=method)
+        dfburst = self.df[start:end][:self.sr][['salinity_00', 'temperature_00', 'seapressure_00', 'depth_00']]
+        return Burst(dfburst, dfburst.index, self.f, self.z, method=method)
 
     def set_df_avg(self, save=False):
         """
