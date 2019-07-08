@@ -21,7 +21,7 @@ class Burst(object):
     t : array_like, pandas.DatetimeIndex
         time series [s]
     f : int
-        Signal d frequency [Hz]
+        Signal frequency [Hz]
     z : float
         elevation of instrument over seabed
     method : string
@@ -36,26 +36,17 @@ class Burst(object):
         self.sr = len(self.df)
         self.ts = (df.index[-1] - df.index[0]).seconds
         self.z = z
-        if method not in ["fourier", "peaks"]:
+        if method not in ["fourier", "welch", "peaks"]:
             raise ValueError("Unknown method")
         self._calc_density()
         self._calc_hydrostatic_depth()
-
         # other vars
         self.pp = None
-
-        if method == 'fourier':
-            # Check depth is 0-aligned
-            # if round(self.hd_mean, 2) != 0:
-            #     self.df.hydro_depth = self.df.hydro_depth - self.hd_mean
-            self._apply_fft()
-        else:
-            self._apply_avg_peak()
-
-        self._calc_L()
-        self._calc_K()
-        self._calc_H()
-        self._calc_U()
+        self._apply_transformation()
+        # self._calc_L()
+        # self._calc_K()
+        # self._calc_H()
+        # self._calc_U()
 
     def _calc_density(self):
         """
@@ -81,7 +72,9 @@ class Burst(object):
         self.df['hydro_depth'] = self.df.apply(
             lambda r: ((r.seapressure_00*10000) / (density_mean * G)) + self.z,
             axis=1)
-        self.df['hydro_depth_dt'] = signal.detrend(self.df['hydro_depth'])
+        self.df['hydro_depth_dt'] = signal.detrend(
+                                        self.df.hydro_depth,
+                                        type="linear")
 
     def _calc_L(self):
         """
@@ -139,10 +132,47 @@ class Burst(object):
         self.U = n / d
         print("Significant orbital speed: %f [m/s]" % self.U)
 
-    def _apply_fft(self):
+    def _apply_transformation(self):
+        """ Transformation method to be implemented in each subclass """
+        raise NotImplementedError("Burst must define a transformation method")
+
+    def __str__(self):
+        return ("Burst %s to %s") % (self.t[0], self.t[-1])
+
+    def unicode(self):
+        return self.__str__()
+
+    def get_K(self):
+        return self.K
+
+    def get_lambda(self):
+        return self.L
+
+    def plot_freqs(self):
+        """ Plot frequencies method to be implemented in each subclass """
+        raise NotImplementedError("Burst must define a plot freqs method")
+
+    def plot_peaks(self):
+        """
+        Plot signal peaks resulting from peakutils peak finder.
+
+        Note: only works if method is 'peaks' when defining Burst
+        """
+        hd_mean = self.hydro_depth.mean()
+        fig, ax = plt.subplots(1, 1, figsize=(12, 6))
+        nrow_series = pd.Series(np.arange(1, self.sr + 1), name='nrow')
+        ax.plot(nrow_series, self.df.hydro_depth, marker=".", color="blue")
+        ax.plot(self.peaks, self.df.hydro_depth[self.peaks], "x", color="r")
+        ax.hlines(hd_mean, xmin=0, xmax=self.sr, linestyles="--", color="red")
+        fig.show()
+
+
+class BurstFourier(Burst):
+
+    def _apply_transformation(self):
         """
         Apply scipy.fftpack.fft Fast Fourier Transform to signal
-        self.df.hydro_depth
+        self.df.hydro_depth_dt
 
         Result stored in self.T [s]
         """
@@ -159,42 +189,12 @@ class Burst(object):
         # Find the period T [s]
         # self.pp = 2*PI/self.pf  # peak period is 2*PI/peakfreq
         # self.T = (self.pp / self.sr) * self.ts  # in seconds
-        self.T = self.rate/self.pf
+        # self.T = self.rate/self.pf
+        self.T = 1/self.pf
 
-    def _apply_avg_peak(self):
-        """
-        Apply peakutils.indexes to find relevant peaks in
-        self.df.hydro_depth and average periods
-
-        Result stored in self.T [s]
-        """
-        self.peaks = peakutils.indexes(
-                        self.df.depth_00,
-                        min_dist=10,
-                        thres=self.df.depth_00.mean(),
-                        thres_abs=True)
-        periods = np.diff(self.peaks)  # difference between peaks
-        mean_period = round(sum(periods)/len(periods), 2)
-        period_secs = (mean_period / self.sr) * (self.t[-1] - self.t[0]).seconds
-        self.T = period_secs
-
-    def __str__(self):
-        return ("Burst %s to %s") % (self.t[0], self.t[-1])
-
-    def unicode(self):
-        return self.__str__()
-
-    def get_K(self):
-        return self.K
-
-    def get_lambda(self):
-        return self.L
-
-    def plot_frequencies(self):
+    def plot_freqs(self):
         """
         Plot signal frequencies resulting from Fast Fourier Transform.
-
-        Note: only works if method is 'fourier' when defining Burst
         """
         fig, (ax0, ax1, ax2) = plt.subplots(3, 1, figsize=(12, 6))
         ax0.plot(self.t, self.df.depth_00, color="green", label="Depth")
@@ -203,35 +203,95 @@ class Burst(object):
         ax0.set_ylabel('Depth [m]')
         ax1.plot(self.t, self.df.hydro_depth_dt, color="blue", label="Hydrostatic depth (detrended)")
         ax1.set_xlabel('Date')
-        ax1.set_ylabel('Hydrostatic depth [m]')
+        ax1.set_ylabel('Depth [m]')
         # ax1.plot(self.s_freq, self.pwr)
         # ax1.set_xlabel('Frequency [Hz]')
 
         # plot the peak frequency
-        ax2.plot(self.freqs, self.pwr[:len(self.freqs)])
+        ax2.plot(self.freqs, self.pwr[:len(self.freqs)], label="Welch", color="blue")
         ax2.set_xlabel('Frequency [Hz]')
-        ax2.set_ylabel('Power [?]')
-        print("Peak frequency is: %.2f" % round(self.pf, 2))
-        print("Power [?] at peak frequency is: %.2f" % round(self.ppwr, 2))
+        ax2.set_ylabel('Power Spectral Density [m^2/Hz]')
+
         # inverse FFT
         # remove higher freqs than Peak Freq
         fft_bis = self.s_fft.copy()
         fft_bis[np.abs(self.s_freq) > self.pf] = 0
         ifft = np.real(fftpack.ifft(fft_bis))
         ax1.plot(self.t, ifft, color="red", label='Inverse FFT')
-        ax1.legend()
         ax0.legend()
+        ax1.legend()
+        ax2.legend()
 
-    def plot_peaks(self):
-        """
-        Plot signal peaks resulting from peakutils peak finder.
 
-        Note: only works if method is 'peaks' when defining Burst
+class BurstWelch(Burst):
+
+    def _apply_transformation(self):
         """
-        hd_mean = self.hydro_depth.mean()
-        fig, ax = plt.subplots(1, 1, figsize=(12, 6))
-        nrow_series = pd.Series(np.arange(1, self.sr + 1), name='nrow')
-        ax.plot(nrow_series, self.df.hydro_depth, marker=".", color="blue")
-        ax.plot(self.peaks, self.df.hydro_depth[self.peaks], "x", color="r")
-        ax.hlines(hd_mean, xmin=0, xmax=self.sr, linestyles="--", color="red")
-        fig.show()
+        Apply scipy.signal.welch to signal self.df.hydro_depth_dt
+
+        Result stored in self.T [s]
+        """
+        self.freqs, self.pwr = signal.welch(
+            self.df.hydro_depth_dt,
+            self.f,
+            nperseg=768)
+            # noverlap=30,
+            # average="median",
+            # detrend="constant")
+        idx = np.argmax(np.abs(self.pwr))
+        self.pf = self.freqs[idx]  # peak freq
+        self.ppwr = self.pwr[idx]  # peak power
+
+    def plot_freqs(self):
+        """
+        Plot signal frequencies resulting from Welch.
+        """
+        fig, (ax0, ax1, ax2) = plt.subplots(3, 1, figsize=(12, 6))
+        ax0.plot(self.t, self.df.depth_00, color="green", label="Depth")
+        ax0.plot(self.t, self.df.hydro_depth, color="blue", label="Hydrostatic depth")
+        ax0.set_xlabel('Date')
+        ax0.set_ylabel('Depth [m]')
+        ax1.plot(self.t, self.df.hydro_depth_dt, color="blue", label="Hydrostatic depth (detrended)")
+        ax1.set_xlabel('Date')
+        ax1.set_ylabel('Depth [m]')
+        # plot the peak frequency
+        ax2.plot(self.freqs, self.pwr[:len(self.freqs)], label="Welch", color="blue")
+        ax2.set_xlabel('Frequency [Hz]')
+        ax2.set_ylabel('Power Spectral Density [m^2/Hz]')
+        print("Peak frequency is: %.2f" % round(self.pf, 2))
+        print("Power [] at peak frequency is: %.2f" % round(self.ppwr, 2))
+        ax2.plot(
+            self.freqs,
+            signal.savgol_filter(self.pwr, window_length=25, polyorder=10, mode='interp')[:len(self.freqs)],
+            label="Savitzky-Golay",
+            color="green")
+        ax2.plot(
+            self.freqs,
+            signal.wiener(self.pwr, mysize=25)[:len(self.freqs)],
+            label="Wiener",
+            color="red")
+        ax0.legend()
+        ax1.legend()
+        ax2.legend()
+
+
+class BurstPeaks(Burst):
+
+    def _apply_transformation(self):
+        """
+        Apply peakutils.indexes to find relevant peaks in
+        self.df.hydro_depth and average periods
+
+        Result stored in self.T [s]
+        """
+        self.peaks = peakutils.indexes(
+                        self.df.hydro_depth,
+                        min_dist=10,
+                        thres=self.df.hydro_depth.mean(),
+                        thres_abs=True)
+        periods = np.diff(self.peaks)  # difference between peaks
+        mean_period = round(sum(periods)/len(periods), 2)
+        self.T = (mean_period / self.sr) * (self.t[-1] - self.t[0]).seconds
+
+    def plot_freqs(self):
+        return None

@@ -3,7 +3,7 @@ import os.path
 import pandas as pd
 import pyrsktools
 
-from burst import Burst
+from burst import BurstFourier, BurstWelch, BurstPeaks
 from constants import (H5_PATH, OUTPUT_PATH, PROCESSED_PATH, VARIABLES,
                        TIMEZONE, AVG_FOLDER, Z_ELEVATION)
 from tools import plotter
@@ -133,7 +133,12 @@ class Device(object):
 
         """
         dfburst = self.df[start:end][:self.sr][['salinity_00', 'temperature_00', 'seapressure_00', 'depth_00']]
-        return Burst(dfburst, dfburst.index, self.f, self.z, method=method)
+        if method == "fourier":
+            return BurstFourier(dfburst, dfburst.index, self.f, self.z)
+        elif method == "welch":
+            return BurstWelch(dfburst, dfburst.index, self.f, self.z)
+        else:
+            return BurstPeaks(dfburst, dfburst.index, self.f, self.z)
 
     def set_df_avg(self, save=False):
         """
