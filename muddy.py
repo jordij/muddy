@@ -1,6 +1,6 @@
 import fire
 
-from constants import DEVICES, SITES, INST_TYPES
+from constants import SITES, INST_TYPES
 from tools import plotter, encoder, structure
 import maps
 
@@ -29,8 +29,7 @@ class Muddy(object):
             d.plot_days()
         else:
             for t in INST_TYPES:  # all instruments
-                devs = encoder.create_devices_by_type(t, origin)
-                for d in devs:
+                for d in encoder.create_devices_by_type(t, origin):
                     d.plot_days()
 
     def avg_plots(self, site="all", dtype="floater"):
@@ -44,9 +43,30 @@ class Muddy(object):
             d.plot_avg()
         else:
             for t in INST_TYPES:  # all instruments
-                devs = encoder.create_devices_by_type(t, "h5")
-                for d in devs:
+                for d in encoder.create_devices_by_type(t, "h5"):
                     d.plot_avg()
+
+    def ssc_u_plots(self, site="all"):
+        if site not in (SITES + ["all"]):
+            raise ValueError("String 'S(n)' n being 1 to 5 expected.")
+        if site != "all":  # just one instrument
+            d = encoder.create_device(site, "bedframe", "h5")
+            d.plot_ssc_u()
+        else:
+            # all bedframes
+            for d in encoder.create_devices_by_type("bedframe", "h5"):
+                d.plot_ssc_u()
+
+    def ssc_u_h_plots(self, site="all"):
+        if site not in (SITES + ["all"]):
+            raise ValueError("String 'S(n)' n being 1 to 5 expected.")
+        if site != "all":  # just one instrument
+            d = encoder.create_device(site, "bedframe", "h5")
+            d.plot_ssc_u_h()
+        else:
+            # all bedframes
+            for d in encoder.create_devices_by_type("bedframe", "h5"):
+                d.plot_ssc_u_h()
 
     def map_plots(self):
         maps.plot_transect()
@@ -62,8 +82,7 @@ class Muddy(object):
             d.save_H5(avg=False)
         else:
             for t in INST_TYPES:  # all instruments
-                devs = encoder.create_devices_by_type(t, "h5")
-                for d in devs:
+                for d in encoder.create_devices_by_type(t, "h5"):
                     d.save_H5(avg=False)
 
     def create_struct(self):

@@ -76,9 +76,11 @@ class Device(object):
             data_path = self.get_H5_path()
             self.df = pd.read_hdf(data_path, "df")
             try:
-                self.df_avg = pd.read_hdf(self.get_H5_path(), "df")
+                self.df_avg = pd.read_hdf(self.get_H5_avg_path(), "df")
             except FileNotFoundError:
                 self.set_df_avg(save=True)
+            finally:
+                self.set_tide()
             print("Using %s as a dataframe source for averaged %s" %
                   (self.get_H5_avg_path(), str(self)))
             print(self.df_avg.shape)
@@ -96,6 +98,24 @@ class Device(object):
         print(self.df.shape)
         print("Any NaN values? -> %s" % str(self.df.isnull().T.any().T.sum()))
         self._set_vars()
+
+    def set_tide(self):
+        """
+        Calculate trend of tide Ebb/Flood depending on next row's depth
+        """
+        # if "tide" not in self.df_avg.columns:
+        self.df_avg["Tide"] = np.where(
+                self.df_avg["depth_00"] > self.df_avg["depth_00"].shift(-1),
+                "Ebb",
+                "Flood")
+        # last row doesn't have a next, compare with previous row
+        last_rows = self.df_avg.tail(2)
+        if last_rows.iloc[0].depth_00 > last_rows.iloc[1].depth_00:
+            print("Last row is ebb %f" % last_rows.iloc[1].depth_00)
+            self.df_avg.at[self.df_avg.index[-1], "Tide"] = "Ebb"
+        else:
+            print("Last row is flood %f" % last_rows.iloc[1].depth_00)
+            self.df_avg.at[self.df_avg.index[-1], "Tide"] = "Flood"
 
     def set_ssc(self):
         """
@@ -127,12 +147,22 @@ class Device(object):
     def get_RSK_path(self):
         return "%s%s_processed.rsk" % (PROCESSED_PATH, self.file)
 
-    def get_burst(self, start=None, end=None, method="fourier"):
+    def get_burst(self, start=None, end=None, method="fourier", df=None):
         """"
         Get Burst from start to end dates
 
         """
-        dfburst = self.df[start:end][:self.sr][['salinity_00', 'temperature_00', 'seapressure_00', 'depth_00']]
+        if df is None:
+            df = self.df
+        burst_vars = [
+            'salinity_00',
+            'temperature_00',
+            'seapressure_00',
+            'depth_00']
+        dfburst = df[start:end][:self.sr][burst_vars]
+
+        if len(dfburst) == 0:
+            return None
         if method == "fourier":
             return BurstFourier(dfburst, dfburst.index, self.f, self.z)
         elif method == "welch":
@@ -145,12 +175,31 @@ class Device(object):
         Calculate SSC, clean data, average and save pandas.DataFrame
         in self.data_path_avg file
         """
-        self.set_ssc(save=True)
+        self.set_ssc()
         self.df_avg = self.clean_df(self.df)
         self.df_avg["ssc_sd"] = self.df.ssc.resample("%ss" % self.i).std()
+        # Orbital speed, sig wave height and period
+        self.df_avg["u"] = 0
+        self.df_avg["T"] = 0
+        self.df_avg["H"] = 0
+        self.df_avg["burst_length"] = 0
+        # Calculate U for each available burst
+        df = self.clean_df(self.df, resample=False)
+        start_date = self.df_avg.index[0]
+        while start_date <= self.df_avg.index[-1]:
+            end_date = start_date + pd.Timedelta("%ss" % self.i)
+            burst = self.get_burst(
+                        start=start_date,
+                        end=end_date,
+                        method="welch",
+                        df=df)
+            if burst:
+                self.df_avg.loc[start_date, ["u", "T", "H"]] = burst.get_UTH()
+                self.df_avg.loc[start_date, "burst_length"] = len(burst.df)
+            start_date = end_date
         self.save_H5(avg=save)
 
-    def clean_df(self, df):
+    def clean_df(self, df, resample=True):
         """ Clean and average given dataframe df """
         df = df[df.salinity_00.notnull() & (df.salinity_00 > 0)]
         print("Length of dataset after cleaning salinity: %i" % len(df))
@@ -158,7 +207,10 @@ class Device(object):
         print("Length of dataset after cleaning turbidity: %i" % len(df))
         df = df[df.depth_00.notnull() & (df.depth_00 > 0)]
         print("Length of dataset after cleaning depth: %i" % len(df))
-        return df.resample("%ss" % self.i).mean()
+        if resample:
+            return df.resample("%ss" % self.i, label='left').mean()
+        else:
+            return df
 
     def __str__(self):
         return ("%s %s") % (self.site, self.dtype.capitalize())
@@ -210,3 +262,21 @@ class Device(object):
                 self.dtype,
                 AVG_FOLDER)
         plotter.plot_ssc_avg(self.df_avg, dest_file, str(self))
+
+    def plot_ssc_u(self):
+        self.df_avg['u'] = self.df_avg['u'] * 100
+        dest_file = "%s%s/%s/%s/ssc_vs_u.png" % (
+            OUTPUT_PATH,
+            self.site,
+            self.dtype,
+            AVG_FOLDER)
+        plotter.plot_ssc_u(self.df_avg, dest_file, str(self))
+
+    def plot_ssc_u_h(self):
+        self.df_avg['u'] = self.df_avg['u'] * 100
+        dest_file = "%s%s/%s/%s/ssc_u_h_series.png" % (
+            OUTPUT_PATH,
+            self.site,
+            self.dtype,
+            AVG_FOLDER)
+        plotter.plot_ssc_u_h_series(self.df_avg, dest_file, str(self))

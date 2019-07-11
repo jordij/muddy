@@ -66,6 +66,15 @@ VARIABLES = {
     },
     "ssc_sd": {
         "name": "SSC Standard Dev.", "units": "mg/l"
+    },
+    "u": {
+        "name": "Wave orbital velocity", "units": "cm/s"
+    },
+    "H": {
+        "name": "Significant wave height", "units": "m"
+    },
+    "T": {
+        "name": "Peak period", "units": "s"
     }
 }
 
