@@ -95,8 +95,11 @@ def plot_ssc_avg(df, dest_file, title):
     """ Plot SSC vs Salinity and Depth """
     print("Generating %s" % dest_file)
     xvars = ["depth_00", "salinity_00"]
-    yvars = ["ssc", "ssc_sd"]
-    sns.set(rc={"figure.figsize": (8, 8)})
+    # yvars = ["ssc", "ssc_sd"]
+    yvars = ["ssc"]
+    sns.set_style("white")
+    sns.set_style("ticks")
+    plt.figure(figsize=(8, 8))
     sns_plot = sns.pairplot(
         df,
         height=8, aspect=1.5,
@@ -107,7 +110,7 @@ def plot_ssc_avg(df, dest_file, title):
         dropna=True)
     sns_plot.fig.suptitle(title)
     for i, v in enumerate(xvars):
-        sns_plot.axes[1, i].set_xlabel("%s [%s]" % (
+        sns_plot.axes[0, i].set_xlabel("%s [%s]" % (
             VARIABLES[v]["name"],
             VARIABLES[v]["units"]))
         # sns_plot.axes[1, i].margins(0, 0)
@@ -135,7 +138,7 @@ def plot_ssc_u(df, dest_file, title):
     print("Generating %s" % dest_file)
     sns.set_style("white")
     sns.set_style("ticks")
-    # sns.set(rc={"figure.figsize": (8, 8)})
+    plt.figure(figsize=(10, 8))
     sns_plot = sns.scatterplot(
         "u",
         "ssc",
@@ -152,6 +155,7 @@ def plot_ssc_u(df, dest_file, title):
         VARIABLES["ssc"]["units"]))
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
+    ax.legend(loc='center right', bbox_to_anchor=(1.1, 0.5), ncol=1)
     plt.savefig(dest_file, dpi=300)
     # free mem
     plt.close()
@@ -164,6 +168,7 @@ def plot_ssc_u_h_series(df, dest_file, dev):
     """
     sns.set_style("white")
     sns.set_style("ticks")
+    # plt.figure(figsize=(14, 8))
     # plot cosmetic vars
     U_ticks = plot_constants.LIMITS[dev]["U_ticks"]
     SSC_ticks = plot_constants.LIMITS[dev]["SSC_ticks"]
@@ -252,8 +257,8 @@ def plot_ssc_u_h_series(df, dest_file, dev):
     axx.xaxis.set_major_locator(mdates.HourLocator(byhour=[0, 12]))
     axx.xaxis.set_major_formatter(mdates.DateFormatter("%d-%m %H:%M",
                                   tz=df.index.tz))
+    # plt.savefig(dest_file, dpi=200, bbox_inches='tight')
+    # free mem
     fig.show()
-    # plt.savefig(dest_file, dpi=300)
-    # # free mem
     # plt.close()
-    # gc.collect()
+    gc.collect()

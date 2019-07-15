@@ -29,7 +29,8 @@ def create_devices_by_type(dtype, dformat):
 
 def create_device(site, dtype, origin):
     """ Create Device from dict values """
-    d = next(item for item in DEVICES if item["site"] == site and item["type"] == dtype)
+    d = next(item for item in DEVICES if (item["site"] == site and
+                                          item["type"] == dtype))
     return Device(
         site=d["site"],
         dtype=d["type"],
