@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Simple script to plot a map of the sites.
 Sites coordinates are stored in constants.INSTR_LOCS_PATH
@@ -42,7 +41,7 @@ def plot_sites():
     )
     # scalebar and arrow pinting north
     x, y = m(175.4675, -37.14905)
-    plt.text(x, y, u'\u25B2\nN', horizontalalignment='center', verticalalignment='bottom')
+    plt.text(x, y, u"\u25B2\nN", horizontalalignment="center", verticalalignment="bottom")
     fontprops = fm.FontProperties(size=10)
     scalebar = ScaleBar(
         100000,
@@ -68,6 +67,6 @@ def plot_sites():
                 "Site %s" % row["SiteNum"],
                 fontsize=8,
                 color="black")
-    plt.savefig("%smap.png" % OUTPUT_PATH, dpi=300, bbox_inches='tight')
+    plt.savefig("%smap.png" % OUTPUT_PATH, dpi=300, bbox_inches="tight")
     plt.show()
     plt.close()

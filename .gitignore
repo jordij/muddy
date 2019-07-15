@@ -1,5 +1,6 @@
 output/
 plots*
+logs*
 
 *gsw_matlab*/
 *rsktools*/

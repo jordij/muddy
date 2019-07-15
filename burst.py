@@ -1,4 +1,5 @@
 import gsw
+import logging
 import math
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,7 +12,7 @@ from scipy import fftpack, signal
 
 class Burst(object):
     r"""
-    Represents a RbR Concerto depth_00 burst
+    Represents a RbR Concerto bedframe burst
 
     Parameters
     ----------
@@ -27,12 +28,14 @@ class Burst(object):
         elevation of instrument over seabed
     """
 
-    def __init__(self, df, t, f, z):
+    def __init__(self, df, t, f, z, device):
+        self.device = device
+        self._init_logger()
         self.df = df
         self.df.dropna(subset=[
-            'salinity_00',
-            'temperature_00',
-            'seapressure_00'], inplace=True)
+            "salinity_00",
+            "temperature_00",
+            "seapressure_00"], inplace=True)
         self.t = t
         self.f = f
         self.rate = 1/f
@@ -49,13 +52,16 @@ class Burst(object):
         self._calc_H()
         self._calc_U()
 
+    def _init_logger(self):
+        self.logger = logging.getLogger("%s" % (str(self.device)))
+
     def _calc_density(self):
         """
         Calculates density from Sal, Temp, Pressure.
 
         http://www.teos-10.org/pubs/gsw/html/gsw_rho_t_exact.html
         """
-        self.df['density'] = self.df.apply(
+        self.df["density"] = self.df.apply(
             lambda r:  gsw.density.rho(
                 r.salinity_00,
                 r.temperature_00,
@@ -70,10 +76,10 @@ class Burst(object):
         Note: pressure in Pascals (1dbar = 10000 P)
         """
         density_mean = self.df.density.mean()
-        self.df['hydro_depth'] = self.df.apply(
+        self.df["hydro_depth"] = self.df.apply(
             lambda r: ((r.seapressure_00*10000) / (density_mean * G)) + self.z,
             axis=1)
-        self.df['hydro_depth_dt'] = signal.detrend(
+        self.df["hydro_depth_dt"] = signal.detrend(
                                         self.df.hydro_depth,
                                         type="linear")
 
@@ -84,23 +90,24 @@ class Burst(object):
         Math: lambda = (G / 2*PI) * T^2 * tanh(2*PI*h/lambda)
         """
         if self.pp:
-            print("Mean period in peaks distance (0 - %s) is: %.2f" %
-                  (str(self.sr), round(self.pp, 2)))
-        # print("T: %.2f [s]" % round(self.T, 2))
+            self.logger.info("Mean period in peaks distance (0 - %s) is: %.2f",
+                             str(self.sr),
+                             round(self.pp, 2))
+        self.logger.info("T: %.2f [s]", round(self.T, 2))
         hd_mean = self.df.hydro_depth.mean()
         hd_sd = self.df.hydro_depth.std()
-        # print("Mean hydrostatic depth: %.2f [m]" % hd_mean)
-        # print("SD hydrostatic depth: %.2f [m]" % hd_sd)
+        self.logger.info("Mean hydrostatic depth: %.2f [m]", hd_mean)
+        self.logger.info("SD hydrostatic depth: %.2f [m]", hd_sd)
         # Starting from guess value (suits deep water waves better)
         self.L = (G/(2 * PI)) * (self.T ** 2)
-        # print("Estimated L: %.2f" % round(self.L, 2))
+        self.logger.info("Estimated L: %.2f" % round(self.L, 2))
         # Iterative process
         err_tol = 1
         while err_tol > 1e-6:
             lb = (G / (2 * PI)) * (self.T ** 2) * np.tanh(2 * PI * (hd_mean / self.L))
             err_tol = np.abs(lb - self.L)
             self.L = lb
-        # print("Converged L: %.2f" % round(self.L, 2))
+        self.logger.info("Converged L: %.2f" % round(self.L, 2))
 
     def _calc_K(self):
         """
@@ -109,7 +116,7 @@ class Burst(object):
         Math: K = (2*PI) / lambda
         """
         self.K = round((2 * PI) / self.L, 2)
-        # print("K wave number: %.2f" % self.K)
+        self.logger.info("K wave number: %.2f", self.K)
 
     def _calc_H(self):
         """
@@ -120,7 +127,7 @@ class Burst(object):
         hd_sd = self.df.hydro_depth.std()
         hd_mean = self.df.hydro_depth.mean()
         self.H = 4 * hd_sd * ((np.cosh(self.K * hd_mean) / np.cosh(self.K * (self.z + hd_mean))))
-        # print("Sig. wave height: %f [m]" % self.H)
+        self.logger.info("Sig. wave height: %f [m]", self.H)
 
     def _calc_U(self):
         """
@@ -130,12 +137,12 @@ class Burst(object):
         hd_mean = self.df.hydro_depth.mean()
         n = (4 * PI * hd_sd * np.cosh(self.K * hd_mean))
         d = (self.T * np.cosh(self.K * (self.z + hd_mean)) * np.sinh(self.K * hd_mean))
-        self.U = n / d
-        # print("Significant orbital speed: %f [m/s]" % self.U)
+        self.U = (n / d) * 100
+        self.logger.info("Significant orbital speed: %f [cm/s]", self.U)
 
     def _calc_T(self):
         """ Method to be implemented in each subclass """
-        raise NotImplementedError("Burst must define a method to calculate period T")
+        raise NotImplementedError("Must define a method to calculate period T")
 
     def __str__(self):
         return ("Burst %s to %s") % (self.t[0], self.t[-1])
@@ -173,7 +180,7 @@ class Burst(object):
         """
         hd_mean = self.hydro_depth.mean()
         fig, ax = plt.subplots(1, 1, figsize=(12, 6))
-        nrow_series = pd.Series(np.arange(1, self.sr + 1), name='nrow')
+        nrow_series = pd.Series(np.arange(1, self.sr + 1), name="nrow")
         ax.plot(nrow_series, self.df.hydro_depth, marker=".", color="blue")
         ax.plot(self.peaks, self.df.hydro_depth[self.peaks], "x", color="r")
         ax.hlines(hd_mean, xmin=0, xmax=self.sr, linestyles="--", color="red")
@@ -212,25 +219,25 @@ class BurstFourier(Burst):
         fig, (ax0, ax1, ax2) = plt.subplots(3, 1, figsize=(12, 6))
         ax0.plot(self.t, self.df.depth_00, color="green", label="Depth")
         ax0.plot(self.t, self.df.hydro_depth, color="blue", label="Hydrostatic depth")
-        ax0.set_xlabel('Date')
-        ax0.set_ylabel('Depth [m]')
+        ax0.set_xlabel("Date")
+        ax0.set_ylabel("Depth [m]")
         ax1.plot(self.t, self.df.hydro_depth_dt, color="blue", label="Hydrostatic depth (detrended)")
-        ax1.set_xlabel('Date')
-        ax1.set_ylabel('Depth [m]')
+        ax1.set_xlabel("Date")
+        ax1.set_ylabel("Depth [m]")
         # ax1.plot(self.s_freq, self.pwr)
-        # ax1.set_xlabel('Frequency [Hz]')
+        # ax1.set_xlabel("Frequency [Hz]")
 
         # plot the peak frequency
         ax2.plot(self.freqs, self.pwr[:len(self.freqs)], label="Welch", color="blue")
-        ax2.set_xlabel('Frequency [Hz]')
-        ax2.set_ylabel('Frequency Spectrum Magnitude')
+        ax2.set_xlabel("Frequency [Hz]")
+        ax2.set_ylabel("Frequency Spectrum Magnitude")
 
         # inverse FFT
         # remove higher freqs than Peak Freq
         fft_bis = self.s_fft.copy()
         fft_bis[np.abs(self.s_freq) > self.pf] = 0
         ifft = np.real(fftpack.ifft(fft_bis))
-        ax1.plot(self.t, ifft, color="red", label='Inverse FFT')
+        ax1.plot(self.t, ifft, color="red", label="Inverse FFT")
         ax0.legend()
         ax1.legend()
         ax2.legend()
@@ -263,20 +270,25 @@ class BurstWelch(Burst):
         fig, (ax0, ax1, ax2) = plt.subplots(3, 1, figsize=(12, 6))
         ax0.plot(self.t, self.df.depth_00, color="green", label="Depth")
         ax0.plot(self.t, self.df.hydro_depth, color="blue", label="Hydrostatic depth")
-        ax0.set_xlabel('Date')
-        ax0.set_ylabel('Depth [m]')
+        ax0.set_xlabel("Date")
+        ax0.set_ylabel("Depth [m]")
         ax1.plot(self.t, self.df.hydro_depth_dt, color="blue", label="Hydrostatic depth (detrended)")
-        ax1.set_xlabel('Date')
-        ax1.set_ylabel('Depth [m]')
+        ax1.set_xlabel("Date")
+        ax1.set_ylabel("Depth [m]")
         # plot the peak frequency
         ax2.plot(self.freqs, self.pwr[:len(self.freqs)], label="Welch", color="blue")
-        ax2.set_xlabel('Frequency [Hz]')
-        ax2.set_ylabel('Power Spectral Density [m^2/Hz]')
-        print("Peak frequency is: %.2f" % round(self.pf, 2))
-        print("Power [] at peak frequency is: %.2f" % round(self.ppwr, 2))
+        ax2.set_xlabel("Frequency [Hz]")
+        ax2.set_ylabel("Power Spectral Density [m^2/Hz]")
+        self.logger.info("Peak frequency is: %.2f", round(self.pf, 2))
+        self.logger.info("Power [] at peak frequency is: %.2f",
+                         round(self.ppwr, 2))
         ax2.plot(
             self.freqs,
-            signal.savgol_filter(self.pwr, window_length=25, polyorder=10, mode='interp')[:len(self.freqs)],
+            signal.savgol_filter(
+                self.pwr,
+                window_length=25,
+                polyorder=10,
+                mode="interp")[:len(self.freqs)],
             label="Savitzky-Golay",
             color="green")
         ax2.plot(

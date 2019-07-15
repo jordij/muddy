@@ -1,4 +1,5 @@
 import fire
+import logging
 
 from constants import SITES, INST_TYPES
 from tools import plotter, encoder, structure
@@ -46,16 +47,16 @@ class Muddy(object):
                 for d in encoder.create_devices_by_type(t, "h5"):
                     d.plot_avg()
 
-    def ssc_u_plots(self, site="all"):
+    def ssc_u_plots(self, site="all", dtype="floater"):
         if site not in (SITES + ["all"]):
             raise ValueError("String 'S(n)' n being 1 to 5 expected.")
         if site != "all":  # just one instrument
-            d = encoder.create_device(site, "bedframe", "h5")
+            d = encoder.create_device(site, dtype, "h5")
             d.plot_ssc_u()
         else:
-            # all bedframes
-            for d in encoder.create_devices_by_type("bedframe", "h5"):
-                d.plot_ssc_u()
+            for t in INST_TYPES:  # all instruments
+                for d in encoder.create_devices_by_type(t, "h5"):
+                    d.plot_ssc_u()
 
     def ssc_u_h_plots(self, site="all"):
         if site not in (SITES + ["all"]):
@@ -91,3 +92,4 @@ class Muddy(object):
 
 if __name__ == "__main__":
     fire.Fire(Muddy)
+    logging.shutdown()
