@@ -251,6 +251,39 @@ class Device(object):
         else:
             return df
 
+    def get_depth_stats(self):
+        """
+        Burst-averaged mean, max, min values of Depth [m]
+        """
+        return (round(self.df_avg.depth_00.mean(), 2),
+                round(self.df_avg.depth_00.max(), 2),
+                round(self.df_avg.depth_00.min(), 2))
+
+    def get_wave_stats(self):
+        """
+        Burst-averaged mean, max, min values of sig wave height [m]
+        """
+        return (round(self.df_avg.H.mean(), 2),
+                round(self.df_avg.H.max(), 2),
+                round(self.df_avg.H.min(), 2))
+
+    def get_u_stats(self):
+        """
+        Burst-averaged mean, max, min values of orbital velocity [cm/s]
+        """
+        return (round(self.df_avg["u"].mean(), 2),
+                round(self.df_avg["u"].max(), 2),
+                round(self.df_avg["u"].min(), 2))
+
+    def get_time_stats(self):
+        """
+        Get % of time in the water (depth available)
+        """
+        perc = (len(self.df_avg[self.df_avg.depth_00 > 0.025]) /
+                len(self.df_avg)) * 100
+        self.logger.info("Time in the water %f", perc)
+        return round(perc, 2)
+
     def __str__(self):
         return ("%s %s") % (self.site, self.dtype.capitalize())
 

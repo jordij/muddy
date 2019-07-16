@@ -5,9 +5,9 @@ device = encoder.create_device("S1", "bedframe", "h5")
 burst_0 = device.get_burst(start="2017-05-12 18:10", end="2017-05-12 18:20", method="welch")
 burst_0.plot_freqs()
 
-device = encoder.create_device("S1", "bedframe", "h5")
-burst_1 = device.get_burst(start="2017-05-12 18:10", end="2017-05-12 18:20", method="fourier")
-burst_1.plot_freqs()
+# device = encoder.create_device("S1", "bedframe", "h5")
+# burst_1 = device.get_burst(start="2017-05-12 18:10", end="2017-05-12 18:20", method="fourier")
+# burst_1.plot_freqs()
 
 # device = encoder.create_device("S2", "bedframe", "h5")
 # burst_0 = device.get_burst(start="2017-05-12 18:10", end="2017-05-12 18:20", method="fourier")

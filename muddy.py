@@ -2,7 +2,7 @@ import fire
 import logging
 
 from constants import SITES, INST_TYPES
-from tools import plotter, encoder, structure
+from tools import plotter, encoder, structure, stats
 import maps
 
 
@@ -85,6 +85,9 @@ class Muddy(object):
                     dbf.plot_ssc_u_h(dfl.df_avg)
                 else:
                     dbf.plot_ssc_u_h(None)
+
+    def stats(self):
+        stats.basic_stats().to_csv('./data/stats.csv')
 
     def map_plots(self):
         maps.plot_transect()
