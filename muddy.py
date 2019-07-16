@@ -47,27 +47,44 @@ class Muddy(object):
                 for d in encoder.create_devices_by_type(t, "h5"):
                     d.plot_avg()
 
-    def ssc_u_plots(self, site, dtype="bedframe"):
-        if site not in (SITES):
+    def ssc_u_plots(self, site="all", dtype="bedframe"):
+        if site not in (SITES + ["all"]):
             raise ValueError("String 'S(n)' n being 1 to 5 expected.")
         if dtype not in INST_TYPES:
             raise ValueError("Type floater or bedframe expected.")
-        d = encoder.create_device(site, dtype, "h5")
-        if dtype == "floater":  # lets grab u values from bedframe
-            dbf = encoder.create_device(site, "bedframe", "h5")
-            d.df_avg["u"] = dbf.df_avg["u"]
-        d.plot_ssc_u()
+        if site != "all":  # just one instrument
+            d = encoder.create_device(site, dtype, "h5")
+            # if floater lets grab wave orbital velocity from bedframe
+            if dtype == "floater":
+                dbf = encoder.create_device(site, "bedframe", "h5")
+                d.df_avg["u"] = dbf.df_avg["u"]
+            d.plot_ssc_u()
+        else:
+            for t in INST_TYPES:  # all instruments
+                for d in encoder.create_devices_by_type(t, "h5"):
+                    if t == "floater":
+                        dbf = encoder.create_device(d.site, "bedframe", "h5")
+                        d.df_avg["u"] = dbf.df_avg["u"]
+                    d.plot_ssc_u()
 
     def ssc_u_h_plots(self, site="all"):
         if site not in (SITES + ["all"]):
             raise ValueError("String 'S(n)' n being 1 to 5 expected.")
         if site != "all":  # just one instrument
-            d = encoder.create_device(site, "bedframe", "h5")
-            d.plot_ssc_u_h()
+            dbf = encoder.create_device(site, "bedframe", "h5")
+            if site != "S3":  # no floater
+                dfl = encoder.create_device(site, "floater", "h5")
+                dbf.plot_ssc_u_h(dfl.df_avg)
+            else:
+                dbf.plot_ssc_u_h(None)
         else:
             # all bedframes
-            for d in encoder.create_devices_by_type("bedframe", "h5"):
-                d.plot_ssc_u_h()
+            for dbf in encoder.create_devices_by_type("bedframe", "h5"):
+                if dbf.site != "S3":  # no floater
+                    dfl = encoder.create_device(dbf.site, "floater", "h5")
+                    dbf.plot_ssc_u_h(dfl.df_avg)
+                else:
+                    dbf.plot_ssc_u_h(None)
 
     def map_plots(self):
         maps.plot_transect()

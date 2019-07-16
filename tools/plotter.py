@@ -162,7 +162,7 @@ def plot_ssc_u(df, dest_file, title):
     gc.collect()
 
 
-def plot_ssc_u_h_series(df, dest_file, dev):
+def plot_ssc_u_h_series(df, dffl, dest_file, dev):
     """
     Plots a combined time series for SSC, Wave Orbital Velocity and water depth
     """
@@ -178,12 +178,16 @@ def plot_ssc_u_h_series(df, dest_file, dev):
     v_u = VARIABLES["u"]
     # weekly data
     dflist = [group for group in df.groupby(df.index.week)]
+    if dffl is not None:
+        dffllist = [group for group in dffl.groupby(dffl.index.week)]
     # dflist = [group for group in df.groupby(pd.TimeGrouper(freq='7D'))]
     fig, axes = plt.subplots(ncols=1, nrows=4)
     i = 0
     # for j in range(0, 4):
     for j in range(1, 5):
         date, dfweek = dflist[j]
+        if dffl is not None:
+            datefl, dfweekfl = dffllist[j]
         # dfweek_clean = dfweek.dropna(subset=["u"])
         dfweek["u"] = dfweek["u"].fillna(-1)
         ax = axes[i]
@@ -194,27 +198,31 @@ def plot_ssc_u_h_series(df, dest_file, dev):
             linestyle=":",
             color="black",
             label=v_depth["name"])
-        ax.set_ylim(bottom=0, top=dfweek.depth_00.max())
+        lims = range(0, int(math.ceil(dfweek.depth_00.max())) + 1)
+        ax.set_ylim(bottom=0, top=max(lims))
         ax.spines["left"].set_position(("outward", -5))
-        lims = range(0, int(math.ceil(df.depth_00.max())))
         ax.spines["left"].set_bounds(min(lims), max(lims))
         ax.spines["right"].set_visible(False)
         ax.set_yticks(lims)
         # ax.tick_params(axis="x", length=0.5, color="black")
-        ax.spines["bottom"].set_bounds(min(ax.get_xticks()), max(ax.get_xticks()))
+        # ax.spines["bottom"].set_bounds(ax.get_xticks()[0], ax.get_xticks()[1])
         # time
         axx = plt.gca()
         axx.xaxis.set_major_locator(mdates.HourLocator(byhour=[0, 12]))
         axx.xaxis.set_major_formatter(mdates.DateFormatter("%d-%m %H:%M",
                                       tz=dfweek.index.tz))
-        # axx.grid(False)
         if i == 2:
             ax.set_ylabel("[%s]" % v_depth["units"])
             ax.yaxis.set_label_coords(-0.025, 1.05)
         # SSC
         ax2 = ax.twinx()
-        ax2.scatter(dfweek.index, dfweek["ssc"], s=5, c="blue", label=v_ssc["name"])
+        ax2.scatter(dfweek.index, dfweek["ssc"], s=3, c="blue",
+                    label="%s at seabed" % v_ssc["name"], alpha="0.8")
         ax2.spines["left"].set_visible(False)
+        if dffl is not None:
+            ax2.scatter(dfweekfl.index, dfweekfl["ssc"], s=3,
+                        c="red", label="%s at surface" % v_ssc["name"],
+                        alpha="0.8")
         # ax2.spines["right"].set_position(("outward", 5))
         lims = range(min(SSC_ticks[i]), max(SSC_ticks[i]))
         ax2.spines["right"].set_bounds(min(SSC_ticks[i]), max(SSC_ticks[i]))
@@ -226,7 +234,114 @@ def plot_ssc_u_h_series(df, dest_file, dev):
         ax3 = ax.twinx()
         ax3.set_ylim(bottom=0, top=max(dfweek["u"]))
         ax3.plot(dfweek.index, dfweek["u"], color="green", label=v_u["name"])
-        # ax3.scatter(dfweek_clean.index, dfweek_clean["u"], s=2, color="green", label=v_u["name"])
+        ax3.spines["right"].set_position(("outward", 55))
+        ax3.spines["left"].set_visible(False)
+        lims = range(min(U_ticks[i]), max(U_ticks[i]))
+        ax3.spines["right"].set_bounds(min(U_ticks[i]), max(U_ticks[i]))
+        ax3.set_yticks(U_ticks[i])
+
+        if i == 2:
+            ax3.set_ylabel("[%s]" % v_u["units"])
+            ax3.yaxis.set_label_coords(1.075, 1.1)
+
+        ax.spines["top"].set_visible(False)
+        ax2.spines["top"].set_visible(False)
+        ax3.spines["top"].set_visible(False)
+        ax2.spines["bottom"].set_visible(False)
+        ax3.spines["bottom"].set_visible(False)
+        ax2.xaxis.set_visible(False)
+        ax3.xaxis.set_visible(False)
+
+        # ax.grid(False)
+        # ax2.grid(False)
+        # ax3.grid(False)
+        if i == 0:  # one legend is enough
+            ax.figure.legend()
+        i += 1
+
+    axx = plt.gca()
+    axx.xaxis.set_major_locator(mdates.DayLocator())
+    axx.xaxis.set_major_locator(mdates.HourLocator(byhour=[0, 12]))
+    axx.xaxis.set_major_formatter(mdates.DateFormatter("%d-%m %H:%M",
+                                  tz=df.index.tz))
+    # plt.savefig(dest_file, dpi=200, bbox_inches='tight')
+    # free mem
+    fig.show()
+    # plt.close()
+    gc.collect()
+
+
+def plot_ssc_u_h_series_v2(df, dffl, dest_file, dev):
+    """
+    Plots a combined time series for SSC, Wave Orbital Velocity and water depth
+    """
+    sns.set_style("white")
+    sns.set_style("ticks")
+    # plt.figure(figsize=(14, 8))
+    # plot cosmetic vars
+    U_ticks = plot_constants.LIMITS[dev]["U_ticks"]
+    SSC_ticks = plot_constants.LIMITS[dev]["SSC_ticks"]
+    # plt.rcParams["axes.facecolor"] = "white"
+    v_depth = VARIABLES["depth_00"]
+    v_ssc = VARIABLES["ssc"]
+    v_u = VARIABLES["u"]
+    # weekly data
+    dflist = [group for group in df.groupby(df.index.week)]
+    dffllist = [group for group in dffl.groupby(dffl.index.week)]
+    # dflist = [group for group in df.groupby(pd.TimeGrouper(freq='7D'))]
+    fig, axes = plt.subplots(ncols=1, nrows=4)
+    i = 0
+    # for j in range(0, 4):
+    for j in range(1, 5):
+        date, dfweek = dflist[j]
+        datefl, dfweekfl = dffllist[j]
+
+
+
+        # dfweek_clean = dfweek.dropna(subset=["u"])
+        dfweek["u"] = dfweek["u"].fillna(-1)
+        ax = axes[i]
+        # water depth
+        ax.plot(
+            dfweek.index,
+            dfweek.depth_00,
+            linestyle=":",
+            color="black",
+            label=v_depth["name"])
+        lims = range(0, int(math.ceil(dfweek.depth_00.max())) + 1)
+        ax.set_ylim(bottom=0, top=max(lims))
+        ax.spines["left"].set_position(("outward", -5))
+        ax.spines["left"].set_bounds(min(lims), max(lims))
+        ax.spines["right"].set_visible(False)
+        ax.set_yticks(lims)
+        # ax.tick_params(axis="x", length=0.5, color="black")
+        # ax.spines["bottom"].set_bounds(ax.get_xticks()[0], ax.get_xticks()[1])
+        # time
+        axx = plt.gca()
+        axx.xaxis.set_major_locator(mdates.HourLocator(byhour=[0, 12]))
+        axx.xaxis.set_major_formatter(mdates.DateFormatter("%d-%m %H:%M",
+                                      tz=dfweek.index.tz))
+        if i == 2:
+            ax.set_ylabel("[%s]" % v_depth["units"])
+            ax.yaxis.set_label_coords(-0.025, 1.05)
+        # SSC
+        ax2 = ax.twinx()
+        ax2.scatter(dfweek.index, dfweek["ssc"], s=3, c="blue",
+                    label="%s at seabed" % v_ssc["name"], alpha="0.8")
+        ax2.spines["left"].set_visible(False)
+        ax2.scatter(dfweekfl.index, dfweekfl["ssc"], s=3, c="red",
+                    label="%s at surface" % v_ssc["name"], alpha="0.8")
+        # ax2.spines["right"].set_position(("outward", 5))
+        lims = range(min(SSC_ticks[i]), max(SSC_ticks[i]))
+        ax2.spines["right"].set_bounds(min(SSC_ticks[i]), max(SSC_ticks[i]))
+        ax2.set_yticks(SSC_ticks[i])
+        if i == 2:
+            ax2.set_ylabel("[%s]" % v_ssc["units"])
+            ax2.yaxis.set_label_coords(1.035, 1.1)
+        # Orbital Vel
+        ax3 = ax.twinx()
+        ax3.set_ylim(bottom=0, top=max(dfweek["u"]))
+        ax3.plot(dfweek.index, dfweek["u"], color="green", label=v_u["name"])
         ax3.spines["right"].set_position(("outward", 55))
         ax3.spines["left"].set_visible(False)
         lims = range(min(U_ticks[i]), max(U_ticks[i]))

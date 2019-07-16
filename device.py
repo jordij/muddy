@@ -61,12 +61,13 @@ class Device(object):
     def _init_logger(self):
         self.logger = logging.getLogger(str(self))
         self.logger.setLevel(logging.INFO)
-        fh = logging.FileHandler("./logs/%s.log" % str(self))
-        fh.setLevel(logging.INFO)
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        fh.setFormatter(formatter)
-        self.logger.addHandler(fh)
+        if not self.logger.handlers:
+            fh = logging.FileHandler("./logs/%s.log" % str(self))
+            fh.setLevel(logging.INFO)
+            formatter = logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+            fh.setFormatter(formatter)
+            self.logger.addHandler(fh)
         self.logger.info("Device %s create" % str(self))
 
     def _set_vars(self):
@@ -141,7 +142,6 @@ class Device(object):
                         end=end_date,
                         method="welch",
                         df=df)
-            # only valid bursts
             if burst:
                 self.df_avg.loc[start_date, ["u", "T", "H"]] = burst.get_UTH()
             else:
@@ -170,13 +170,13 @@ class Device(object):
         """
         Calculate SSC from linear interpolation of self.T with self.SSC
         """
-        # if "ssc" not in self.df.columns:
-        self.df["ssc"] = self.df.apply(
-            lambda r: np.interp(
-                r.turbidity_00,
-                self.T,
-                self.SSC),
-            axis=1)
+        if "ssc" not in self.df.columns:
+            self.df["ssc"] = self.df.apply(
+                lambda r: np.interp(
+                    r.turbidity_00,
+                    self.T,
+                    self.SSC),
+                axis=1)
 
     def save_H5(self, avg=False):
         """
@@ -209,8 +209,8 @@ class Device(object):
             "seapressure_00",
             "depth_00"]
         dfburst = df[start:end][:self.sr][burst_vars]
-        # discard burst with missing/nans values
-        if ((len(dfburst) == 0) or
+        # discard burst with missing values or NaN
+        if ((len(dfburst) < (self.sr/2)) or
             (dfburst.isnull().values.sum() != 0) or
                 (dfburst.isna().values.sum() != 0)):
             return None
@@ -230,7 +230,7 @@ class Device(object):
         in self.data_path_avg file
         """
         self.set_ssc()
-        self.df_avg = self.clean_df(self.df)
+        self.df_avg = self.clean_df(self.df, resample=True)
         self.df_avg["ssc_sd"] = self.df.ssc.resample("%ss" % self.i).std()
         if self.dtype == "bedframe":
             self._calc_bursts()
@@ -241,10 +241,10 @@ class Device(object):
         df = df[df.salinity_00.notnull() & (df.salinity_00 > 0)]
         self.logger.info("Length of dataset after cleaning salinity: %i",
                          len(df))
-        df = df[df.turbidity_00.notnull() & (df.turbidity_00 > 5)]
+        df = df[df.turbidity_00.notnull() & (df.turbidity_00 > 3)]
         self.logger.info("Length of dataset after cleaning turbidity: %i",
                          len(df))
-        df = df[df.depth_00.notnull() & (df.depth_00 > 0)]
+        df = df[df.depth_00.notnull() & (df.depth_00 > 0.025)]
         self.logger.info("Length of dataset after cleaning depth: %i", len(df))
         if resample:
             return df.resample("%ss" % self.i, label="left").mean()
@@ -304,18 +304,20 @@ class Device(object):
 
     def plot_ssc_u(self):
         """ Plots SSC vs Significant wave height """
-        dest_file = "%s%s/%s/%s/ssc_vs_u.png" % (
+        dest_file = "%s%s/%s/%s/%s_%s_ssc_vs_u.png" % (
             OUTPUT_PATH,
             self.site,
             self.dtype,
-            AVG_FOLDER)
+            AVG_FOLDER,
+            self.site.lower(),
+            self.dtype.lower())
         plotter.plot_ssc_u(self.df_avg, dest_file, str(self))
 
-    def plot_ssc_u_h(self):
+    def plot_ssc_u_h(self, dffl=None):
         """ Plots a time series for SSC, Sig wave height and water depth """
         dest_file = "%s%s/%s/%s/ssc_u_h_series.png" % (
             OUTPUT_PATH,
             self.site,
             self.dtype,
             AVG_FOLDER)
-        plotter.plot_ssc_u_h_series(self.df_avg, dest_file, str(self))
+        plotter.plot_ssc_u_h_series(self.df_avg, dffl, dest_file, str(self))
