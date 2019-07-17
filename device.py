@@ -263,17 +263,17 @@ class Device(object):
         """
         Burst-averaged mean, max, min values of sig wave height [m]
         """
-        return (round(self.df_avg.H.mean(), 2),
-                round(self.df_avg.H.max(), 2),
-                round(self.df_avg.H.min(), 2))
+        return (round(self.df_avg[self.df_avg.H > 0].H.mean(), 2),
+                round(self.df_avg[self.df_avg.H > 0].H.max(), 2),
+                round(self.df_avg[self.df_avg.H > 0].H.min(), 2))
 
     def get_u_stats(self):
         """
         Burst-averaged mean, max, min values of orbital velocity [cm/s]
         """
-        return (round(self.df_avg["u"].mean(), 2),
-                round(self.df_avg["u"].max(), 2),
-                round(self.df_avg["u"].min(), 2))
+        return (round(self.df_avg[self.df_avg["u"] > 0]["u"].mean(), 2),
+                round(self.df_avg[self.df_avg["u"] > 0]["u"].max(), 2),
+                round(self.df_avg[self.df_avg["u"] > 0]["u"].min(), 2))
 
     def get_time_stats(self):
         """

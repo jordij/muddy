@@ -15,13 +15,17 @@ register_matplotlib_converters()
 
 def plot_obs_calibration():
     """ Plot OBS calibration for all available devices"""
-    sns.set(rc={"figure.figsize": (9, 8)})
+    sns.set_style("white")
+    sns.set_style("ticks")
+    plt.figure(figsize=(9, 8))
     for t in INST_TYPES:
-        devs = encoder.create_devices_by_type(t)
+        devs = encoder.create_devices_by_type(t, "h5")
         fig, ax = plt.subplots()
         for d in devs:
             ax.plot(d.T, d.SSC, label=d.site, marker="o")
         ax.set(xlabel="Turbidity [NTU]", ylabel="SSC [mg/L]")
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
         fig.legend(title="Sites", loc="center right")
         dest_file = "%sOBS_calib_%s.png" % (OUTPUT_PATH, t)
         fig.savefig(dest_file, dpi=200)
