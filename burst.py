@@ -268,6 +268,7 @@ class BurstWelch(Burst):
         Plot signal frequencies resulting from Welch.
         """
         fig, (ax0, ax1, ax2) = plt.subplots(3, 1, figsize=(12, 6))
+        fig.suptitle(str(self))
         ax0.plot(self.t, self.df.depth_00, color="green", label="Depth")
         ax0.plot(self.t, self.df.hydro_depth, color="blue", label="Hydrostatic depth")
         ax0.set_xlabel("Date")
