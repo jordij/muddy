@@ -95,7 +95,7 @@ class Muddy(object):
         maps.plot_bathymetry()
 
     def historical_plot(self):
-        station.plot_historical_data()
+        station.plot_wind()
 
     def RSKtoH5(self, site="all", dtype="floater"):
         """ Store RSK data in h5 """
