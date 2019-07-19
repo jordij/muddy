@@ -2,7 +2,7 @@ import fire
 import logging
 
 from constants import SITES, INST_TYPES
-from tools import plotter, encoder, structure, stats
+from tools import plotter, encoder, structure, stats, station
 import maps
 
 
@@ -93,6 +93,9 @@ class Muddy(object):
         maps.plot_transect()
         maps.plot_sites()
         maps.plot_bathymetry()
+
+    def historical_plot(self):
+        station.plot_historical_data()
 
     def RSKtoH5(self, site="all", dtype="floater"):
         """ Store RSK data in h5 """

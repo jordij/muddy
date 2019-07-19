@@ -216,8 +216,24 @@ def plot_ssc_u_h_series(df, dffl, dest_file, dev):
         axx.xaxis.set_major_formatter(mdates.DateFormatter("%d-%m %H:%M",
                                       tz=dfweek.index.tz))
         if i == 2:
-            ax.set_ylabel("[%s]" % v_depth["units"])
-            ax.yaxis.set_label_coords(-0.025, 1.05)
+            ax.set_ylabel("Depth [%s]" % v_depth["units"])
+            ax.yaxis.set_label_coords(-0.015, 1.05)
+        # Wave height H
+        ax1 = ax.twinx()
+        ax1.plot(dfweek.index, dfweek["H"], color="black",
+                 label="Significant wave height")
+        ax1.yaxis.tick_left()
+        # lims = range(0, round(math.ceil(dfweek.H.max()) + 0.1, 1))
+        ax1.set_ylim(bottom=0, top=1)
+        ax1.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1])
+        ax1.spines["right"].set_visible(False)
+        ax1.spines["top"].set_visible(False)
+        ax1.spines["bottom"].set_visible(False)
+        ax1.spines["left"].set_position(("outward", 40))
+        ax1.spines["left"].set_bounds(0, 1)
+        if i == 2:
+            ax1.set_ylabel("Significant wave height [%s]" % v_depth["units"])
+            ax1.yaxis.set_label_coords(-0.075, 1.05)
         # SSC
         ax2 = ax.twinx()
         ax2.scatter(dfweek.index, dfweek["ssc"], s=3, c="blue",
@@ -232,7 +248,7 @@ def plot_ssc_u_h_series(df, dffl, dest_file, dev):
         ax2.spines["right"].set_bounds(min(SSC_ticks[i]), max(SSC_ticks[i]))
         ax2.set_yticks(SSC_ticks[i])
         if i == 2:
-            ax2.set_ylabel("[%s]" % v_ssc["units"])
+            ax2.set_ylabel("SSC [%s]" % v_ssc["units"])
             ax2.yaxis.set_label_coords(1.035, 1.1)
         # Orbital Vel
         ax3 = ax.twinx()
@@ -245,7 +261,7 @@ def plot_ssc_u_h_series(df, dffl, dest_file, dev):
         ax3.set_yticks(U_ticks[i])
 
         if i == 2:
-            ax3.set_ylabel("[%s]" % v_u["units"])
+            ax3.set_ylabel("Wave orbital velocity[%s]" % v_u["units"])
             ax3.yaxis.set_label_coords(1.075, 1.1)
 
         ax.spines["top"].set_visible(False)
@@ -291,20 +307,21 @@ def plot_ssc_u_h_series_v2(df, dffl, dest_file, dev):
     v_u = VARIABLES["u"]
     # weekly data
     dflist = [group for group in df.groupby(df.index.week)]
-    dffllist = [group for group in dffl.groupby(dffl.index.week)]
+    if dffl is not None:
+        dffllist = [group for group in dffl.groupby(dffl.index.week)]
     # dflist = [group for group in df.groupby(pd.TimeGrouper(freq='7D'))]
-    fig, axes = plt.subplots(ncols=1, nrows=4)
+    fig, axes = plt.subplots(ncols=1, nrows=8)
     i = 0
+    k = 0
     # for j in range(0, 4):
     for j in range(1, 5):
         date, dfweek = dflist[j]
-        datefl, dfweekfl = dffllist[j]
-
-
-
+        if dffl is not None:
+            datefl, dfweekfl = dffllist[j]
         # dfweek_clean = dfweek.dropna(subset=["u"])
         dfweek["u"] = dfweek["u"].fillna(-1)
-        ax = axes[i]
+        ax = axes[i + 1]
+        ax1 = axes[i]
         # water depth
         ax.plot(
             dfweek.index,
@@ -325,22 +342,39 @@ def plot_ssc_u_h_series_v2(df, dffl, dest_file, dev):
         axx.xaxis.set_major_locator(mdates.HourLocator(byhour=[0, 12]))
         axx.xaxis.set_major_formatter(mdates.DateFormatter("%d-%m %H:%M",
                                       tz=dfweek.index.tz))
-        if i == 2:
-            ax.set_ylabel("[%s]" % v_depth["units"])
-            ax.yaxis.set_label_coords(-0.025, 1.05)
+        if j == 2:
+            ax.set_ylabel("Depth [%s]" % v_depth["units"])
+            ax.yaxis.set_label_coords(-0.015, 1.05)
+        # Wave height H
+        ax1.plot(dfweek.index, dfweek["H"], color="black",
+                 label="Significant wave height")
+        ax1.yaxis.tick_left()
+        ax1.xaxis.set_visible(False)
+        ax1.set_ylim(bottom=0, top=1)
+        ax1.set_yticks([0, 1])
+        ax1.spines["right"].set_visible(False)
+        ax1.spines["top"].set_visible(False)
+        ax1.spines["bottom"].set_visible(False)
+        # ax1.spines["left"].set_position(("outward", 40))
+        ax1.spines["left"].set_bounds(0, 1)
+        if j == 2:
+            ax1.set_ylabel("Significant wave height [%s]" % v_depth["units"])
+            ax1.yaxis.set_label_coords(-0.075, 1.05)
         # SSC
         ax2 = ax.twinx()
         ax2.scatter(dfweek.index, dfweek["ssc"], s=3, c="blue",
                     label="%s at seabed" % v_ssc["name"], alpha="0.8")
         ax2.spines["left"].set_visible(False)
-        ax2.scatter(dfweekfl.index, dfweekfl["ssc"], s=3, c="red",
-                    label="%s at surface" % v_ssc["name"], alpha="0.8")
+        if dffl is not None:
+            ax2.scatter(dfweekfl.index, dfweekfl["ssc"], s=3,
+                        c="red", label="%s at surface" % v_ssc["name"],
+                        alpha="0.8")
         # ax2.spines["right"].set_position(("outward", 5))
-        lims = range(min(SSC_ticks[i]), max(SSC_ticks[i]))
-        ax2.spines["right"].set_bounds(min(SSC_ticks[i]), max(SSC_ticks[i]))
-        ax2.set_yticks(SSC_ticks[i])
-        if i == 2:
-            ax2.set_ylabel("[%s]" % v_ssc["units"])
+        lims = range(min(SSC_ticks[k]), max(SSC_ticks[k]))
+        ax2.spines["right"].set_bounds(min(SSC_ticks[k]), max(SSC_ticks[k]))
+        ax2.set_yticks(SSC_ticks[k])
+        if j == 2:
+            ax2.set_ylabel("SSC [%s]" % v_ssc["units"])
             ax2.yaxis.set_label_coords(1.035, 1.1)
         # Orbital Vel
         ax3 = ax.twinx()
@@ -348,12 +382,12 @@ def plot_ssc_u_h_series_v2(df, dffl, dest_file, dev):
         ax3.plot(dfweek.index, dfweek["u"], color="green", label=v_u["name"])
         ax3.spines["right"].set_position(("outward", 55))
         ax3.spines["left"].set_visible(False)
-        lims = range(min(U_ticks[i]), max(U_ticks[i]))
-        ax3.spines["right"].set_bounds(min(U_ticks[i]), max(U_ticks[i]))
-        ax3.set_yticks(U_ticks[i])
+        lims = range(min(U_ticks[k]), max(U_ticks[k]))
+        ax3.spines["right"].set_bounds(min(U_ticks[k]), max(U_ticks[k]))
+        ax3.set_yticks(U_ticks[k])
 
-        if i == 2:
-            ax3.set_ylabel("[%s]" % v_u["units"])
+        if j == 2:
+            ax3.set_ylabel("Wave orbital velocity[%s]" % v_u["units"])
             ax3.yaxis.set_label_coords(1.075, 1.1)
 
         ax.spines["top"].set_visible(False)
@@ -369,13 +403,15 @@ def plot_ssc_u_h_series_v2(df, dffl, dest_file, dev):
         # ax3.grid(False)
         if i == 0:  # one legend is enough
             ax.figure.legend()
-        i += 1
+        i += 2
+        k += 1
 
     axx = plt.gca()
     axx.xaxis.set_major_locator(mdates.DayLocator())
     axx.xaxis.set_major_locator(mdates.HourLocator(byhour=[0, 12]))
     axx.xaxis.set_major_formatter(mdates.DateFormatter("%d-%m %H:%M",
                                   tz=df.index.tz))
+    plt.subplots_adjust(hspace=0.5)
     # plt.savefig(dest_file, dpi=200, bbox_inches='tight')
     # free mem
     fig.show()

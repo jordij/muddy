@@ -8,6 +8,8 @@ data/hd5/
 data/hd5 - Copy/
 data/rsk/
 data/stats.csv
+data/NIWA/
+data/WRC/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

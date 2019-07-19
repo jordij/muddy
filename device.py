@@ -353,4 +353,4 @@ class Device(object):
             self.site,
             self.dtype,
             AVG_FOLDER)
-        plotter.plot_ssc_u_h_series(self.df_avg, dffl, dest_file, str(self))
+        plotter.plot_ssc_u_h_series_v2(self.df_avg, dffl, dest_file, str(self))
