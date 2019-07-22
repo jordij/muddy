@@ -3,6 +3,7 @@ import gc
 import math
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
 from pandas.plotting import register_matplotlib_converters
@@ -155,6 +156,39 @@ def plot_ssc_u(df, dest_file, title):
         VARIABLES["u"]["name"],
         VARIABLES["u"]["units"]))
     ax.set_ylabel("%s [%s]" % (
+        VARIABLES["ssc"]["name"],
+        VARIABLES["ssc"]["units"]))
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend(loc='center right', bbox_to_anchor=(1.1, 0.5), ncol=1)
+    plt.savefig(dest_file, dpi=300)
+    # free mem
+    plt.close()
+    gc.collect()
+
+
+def plot_ssc_u_log(df, dest_file, title):
+    """
+    Plot SSC vs Wave Orbital Velocity
+    """
+    print("Generating %s" % dest_file)
+    sns.set_style("white")
+    sns.set_style("ticks")
+    plt.figure(figsize=(10, 8))
+    df["ssc"] = np.log(df["ssc"])
+    df["u"] = np.power(df["u"], 3)
+    sns_plot = sns.scatterplot(
+        "u",
+        "ssc",
+        data=df,
+        alpha=0.75,
+        hue="Tide")
+    ax = plt.gca()
+    ax.set_title(title)
+    ax.set_xlabel("%s ^3 [%s]" % (
+        VARIABLES["u"]["name"],
+        VARIABLES["u"]["units"]))
+    ax.set_ylabel("%s log 10 [%s]" % (
         VARIABLES["ssc"]["name"],
         VARIABLES["ssc"]["units"]))
     ax.spines["top"].set_visible(False)

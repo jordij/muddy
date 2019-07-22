@@ -337,14 +337,22 @@ class Device(object):
 
     def plot_ssc_u(self):
         """ Plots SSC vs Significant wave height """
-        dest_file = "%s%s/%s/%s/%s_%s_ssc_vs_u.png" % (
+        # dest_file = "%s%s/%s/%s/%s_%s_ssc_vs_u.png" % (
+        #     OUTPUT_PATH,
+        #     self.site,
+        #     self.dtype,
+        #     AVG_FOLDER,
+        #     self.site.lower(),
+        #     self.dtype.lower())
+        # plotter.plot_ssc_u(self.df_avg, dest_file, str(self))
+        dest_file = "%s%s/%s/%s/%s_%s_ssc_vs_u_log.png" % (
             OUTPUT_PATH,
             self.site,
             self.dtype,
             AVG_FOLDER,
             self.site.lower(),
             self.dtype.lower())
-        plotter.plot_ssc_u(self.df_avg, dest_file, str(self))
+        plotter.plot_ssc_u_log(self.df_avg, dest_file, str(self))
 
     def plot_ssc_u_h(self, dffl=None):
         """ Plots a time series for SSC, Sig wave height and water depth """

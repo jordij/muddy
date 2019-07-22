@@ -9,6 +9,7 @@ import seaborn as sns
 from constants import TIMEZONE
 from matplotlib.ticker import MultipleLocator
 from pandas.plotting import register_matplotlib_converters
+from windrose import plot_windrose
 
 
 WIND_DATA_FILE = "./data/NIWA/2010-2019/FOT wind.csv"
@@ -27,12 +28,47 @@ def plot_wind():
         index_col=0,
         parse_dates=[0],
         na_values=["", "-"])
+    df["speed"] = df["Speed(m/s)"]
+    df["direction"] = df["Dir(DegT)"]
+    windrose_plot(df)
     df = df[df.index.year.isin([2011, 2012, 2013, 2014, 2015,
             2016, 2017, 2018, 2019])]
     df = df[df.index.month.isin([5, 6])]
-
     boxplot_wind(df)
     barplot_wind(df)
+
+
+def windrose_plot(df):
+    """
+    Plots windrose for 2017 and
+    """
+    dfpast = df[df.index.year.isin([2010, 2011, 2012, 2013, 2014, 2015,
+                2016, 2018, 2019])]
+    dfexp = df["2017-05-11 00:00:00":"2017-06-10 00:00:00"]
+    for d, y in [(dfpast, "past"), (dfexp, "experiment")]:
+        ax = plot_windrose(
+            d,
+            kind='bar',
+            normed=True,
+            opening=0.8,
+            bins=np.arange(0, 14, 2),
+            edgecolor="black")
+        ax.set_yticks([])
+        ax.set_legend(title="Wind speed [m/s]",
+                      loc='center left',
+                      bbox_to_anchor=(-0.3, 0.5),
+                      labels=[
+                        "0-2 m/s",
+                        "2-4 m/s",
+                        "4-6 m/s",
+                        "6-8 m/s",
+                        "8-10 m/s",
+                        "10-12 m/s",
+                        "+12 m/s"])
+        plt.savefig("./plots/weather/rose_%s.png" % y, dpi=300,
+                    bbox_inches='tight')
+        plt.close()
+        gc.collect()
 
 
 def boxplot_wind(df):
