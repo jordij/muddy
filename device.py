@@ -7,7 +7,7 @@ import pyrsktools
 from burst import BurstFourier, BurstWelch, BurstPeaks
 from constants import (H5_PATH, OUTPUT_PATH, PROCESSED_PATH, VARIABLES,
                        TIMEZONE, AVG_FOLDER, Z_ELEVATION)
-from tools import plotter
+from tools import plotter, station
 
 
 class Device(object):
@@ -337,14 +337,14 @@ class Device(object):
 
     def plot_ssc_u(self):
         """ Plots SSC vs Significant wave height """
-        # dest_file = "%s%s/%s/%s/%s_%s_ssc_vs_u.png" % (
-        #     OUTPUT_PATH,
-        #     self.site,
-        #     self.dtype,
-        #     AVG_FOLDER,
-        #     self.site.lower(),
-        #     self.dtype.lower())
-        # plotter.plot_ssc_u(self.df_avg, dest_file, str(self))
+        dest_file = "%s%s/%s/%s/%s_%s_ssc_vs_u.png" % (
+            OUTPUT_PATH,
+            self.site,
+            self.dtype,
+            AVG_FOLDER,
+            self.site.lower(),
+            self.dtype.lower())
+        plotter.plot_ssc_u(self.df_avg, dest_file, str(self))
         dest_file = "%s%s/%s/%s/%s_%s_ssc_vs_u_log.png" % (
             OUTPUT_PATH,
             self.site,
@@ -361,4 +361,42 @@ class Device(object):
             self.site,
             self.dtype,
             AVG_FOLDER)
-        plotter.plot_ssc_u_h_series_v2(self.df_avg, dffl, dest_file, str(self))
+        plotter.plot_ssc_u_h_series(self.df_avg, dffl, dest_file, str(self))
+
+    def plot_ssc_u_h_weekly(self, dffl=None):
+        """ Plots a detailed weekly times series """
+        dfwindlist = station.get_weekly_wind()
+        dfrainlist = station.get_weekly_rainfall()
+        dfpressurelist = station.get_weekly_pressure()
+        dflist = [g for g in self.df_avg.groupby(self.df_avg.index.week)]
+        if dffl is not None:
+            dffllist = [g for g in dffl.groupby(dffl.index.week)]
+        else:
+            dffllist = [[None, None] for i in dflist]
+        depthlist = self.get_weekly_corrected_depth()
+        i = 0
+        for date, dfweek in dflist:
+            dest_file = "%s%s/%s/%s/weekly_ssc_u_h_series_%d.png" % (
+                OUTPUT_PATH,
+                self.site,
+                self.dtype,
+                AVG_FOLDER,
+                i)
+            plotter.plot_ssc_u_h_weekly_series(
+                dfweek,
+                dffllist[i][1],
+                dfwindlist[i],
+                dfrainlist[i],
+                dfpressurelist[i],
+                depthlist[i],
+                dest_file,
+                date,
+                str(self),
+                i)
+            i += 1
+
+    def get_weekly_corrected_depth(self):
+        self.df["depth_corrected"] = self.df["depth_00"] - 0.15
+        self.df.loc[self.df["depth_corrected"] < 0, ["depth_corrected"]] = 0
+        return [g[1]["depth_corrected"].resample("%ss" % self.i).mean()
+                for g in self.df.groupby(self.df.index.week)]

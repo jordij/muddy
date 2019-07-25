@@ -104,7 +104,8 @@ class Burst(object):
         # Iterative process
         err_tol = 1
         while err_tol > 1e-6:
-            lb = (G / (2 * PI)) * (self.T ** 2) * np.tanh(2 * PI * (hd_mean / self.L))
+            lb = (G / (2 * PI)) * (self.T ** 2) * np.tanh(2 * PI *
+                                                          (hd_mean / self.L))
             err_tol = np.abs(lb - self.L)
             self.L = lb
         self.logger.info("Converged L: %.2f" % round(self.L, 2))
@@ -126,7 +127,8 @@ class Burst(object):
         """
         hd_sd = self.df.hydro_depth.std()
         hd_mean = self.df.hydro_depth.mean()
-        self.H = 4 * hd_sd * ((np.cosh(self.K * hd_mean) / np.cosh(self.K * (self.z + hd_mean))))
+        self.H = 4 * hd_sd * ((np.cosh(self.K * hd_mean) /
+                               np.cosh(self.K * (self.z + hd_mean))))
         self.logger.info("Sig. wave height: %f [m]", self.H)
 
     def _calc_U(self):
@@ -136,7 +138,8 @@ class Burst(object):
         hd_sd = self.df.hydro_depth.std()
         hd_mean = self.df.hydro_depth.mean()
         n = (4 * PI * hd_sd * np.cosh(self.K * hd_mean))
-        d = (self.T * np.cosh(self.K * (self.z + hd_mean)) * np.sinh(self.K * hd_mean))
+        d = (self.T * np.cosh(self.K * (self.z + hd_mean)) *
+             np.sinh(self.K * hd_mean))
         self.U = (n / d) * 100
         self.logger.info("Significant orbital speed: %f [cm/s]", self.U)
 
@@ -218,17 +221,20 @@ class BurstFourier(Burst):
         """
         fig, (ax0, ax1, ax2) = plt.subplots(3, 1, figsize=(12, 6))
         ax0.plot(self.t, self.df.depth_00, color="green", label="Depth")
-        ax0.plot(self.t, self.df.hydro_depth, color="blue", label="Hydrostatic depth")
+        ax0.plot(self.t, self.df.hydro_depth, color="blue",
+                 label="Hydrostatic depth")
         ax0.set_xlabel("Date")
         ax0.set_ylabel("Depth [m]")
-        ax1.plot(self.t, self.df.hydro_depth_dt, color="blue", label="Hydrostatic depth (detrended)")
+        ax1.plot(self.t, self.df.hydro_depth_dt, color="blue",
+                 label="Hydrostatic depth (detrended)")
         ax1.set_xlabel("Date")
         ax1.set_ylabel("Depth [m]")
         # ax1.plot(self.s_freq, self.pwr)
         # ax1.set_xlabel("Frequency [Hz]")
 
         # plot the peak frequency
-        ax2.plot(self.freqs, self.pwr[:len(self.freqs)], label="Welch", color="blue")
+        ax2.plot(self.freqs, self.pwr[:len(self.freqs)], label="Welch",
+                 color="blue")
         ax2.set_xlabel("Frequency [Hz]")
         ax2.set_ylabel("Frequency Spectrum Magnitude")
 
@@ -254,10 +260,7 @@ class BurstWelch(Burst):
         self.freqs, self.pwr = signal.welch(
             self.df.hydro_depth_dt,
             self.f,
-            nperseg=int(math.ceil(self.sr/4 + self.sr/8)))  # 768 if sr is 2048 (full burst)
-            # noverlap=30,
-            # average="median",
-            # detrend="constant")
+            nperseg=self.sr/8)  # 256 for 2048 burts
         idx = np.argmax(np.abs(self.pwr))
         self.pf = self.freqs[idx]  # peak freq
         self.ppwr = self.pwr[idx]  # peak power
@@ -319,6 +322,7 @@ class BurstPeaks(Burst):
         periods = np.diff(self.peaks)  # difference between peaks
         mean_period = round(sum(periods)/len(periods), 2)
         self.T = (mean_period / self.sr) * (self.t[-1] - self.t[0]).seconds
+        self.pf = 1/self.T
 
     def plot_freqs(self):
         return None

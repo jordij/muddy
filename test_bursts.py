@@ -51,10 +51,10 @@ dates = [
 ]
 for i, d in enumerate(dates):
     if i < len(dates) - 1:
-        burst = device.get_burst(start=d, end=dates[i + 1], method="welch")
+        burst = device.get_burst(start=d, end=dates[i + 1], method="fourier")
         burst.plot_freqs()
         print(str(burst))
-        print("U [cm/s], T [s], H [m] : %s" % str(burst.get_UTH()))
+        print("U: %.2f [cm/s], T: %.2f [s], H: %.2f [m]" % burst.get_UTH())
 
 
 # device = encoder.create_device("S1", "bedframe", "h5")

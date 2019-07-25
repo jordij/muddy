@@ -141,16 +141,17 @@ def plot_ssc_u(df, dest_file, title):
     Plot SSC vs Wave Orbital Velocity
     """
     print("Generating %s" % dest_file)
+    sns.set(rc={"figure.figsize": (10, 8)})
     sns.set_style("white")
     sns.set_style("ticks")
-    plt.figure(figsize=(10, 8))
-    sns_plot = sns.scatterplot(
+    fig, ax = plt.subplots()
+    sns.scatterplot(
         "u",
         "ssc",
         data=df,
         alpha=0.75,
-        hue="Tide")
-    ax = plt.gca()
+        hue="Tide",
+        ax=ax)
     ax.set_title(title)
     ax.set_xlabel("%s [%s]" % (
         VARIABLES["u"]["name"],
@@ -158,11 +159,9 @@ def plot_ssc_u(df, dest_file, title):
     ax.set_ylabel("%s [%s]" % (
         VARIABLES["ssc"]["name"],
         VARIABLES["ssc"]["units"]))
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
+    sns.despine(right=True, top=True)
     ax.legend(loc='center right', bbox_to_anchor=(1.1, 0.5), ncol=1)
-    plt.savefig(dest_file, dpi=300)
-    # free mem
+    fig.savefig(dest_file, dpi=300)
     plt.close()
     gc.collect()
 
@@ -172,18 +171,19 @@ def plot_ssc_u_log(df, dest_file, title):
     Plot SSC vs Wave Orbital Velocity
     """
     print("Generating %s" % dest_file)
+    sns.set(rc={"figure.figsize": (10, 8)})
     sns.set_style("white")
     sns.set_style("ticks")
-    plt.figure(figsize=(10, 8))
     df["ssc"] = np.log(df["ssc"])
     df["u"] = np.power(df["u"], 3)
-    sns_plot = sns.scatterplot(
+    fig, ax = plt.subplots()
+    sns.scatterplot(
         "u",
         "ssc",
         data=df,
         alpha=0.75,
-        hue="Tide")
-    ax = plt.gca()
+        hue="Tide",
+        ax=ax)
     ax.set_title(title)
     ax.set_xlabel("%s ^3 [%s]" % (
         VARIABLES["u"]["name"],
@@ -191,41 +191,35 @@ def plot_ssc_u_log(df, dest_file, title):
     ax.set_ylabel("%s log 10 [%s]" % (
         VARIABLES["ssc"]["name"],
         VARIABLES["ssc"]["units"]))
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
+    sns.despine(right=True, top=True)
     ax.legend(loc='center right', bbox_to_anchor=(1.1, 0.5), ncol=1)
-    plt.savefig(dest_file, dpi=300)
-    # free mem
+    fig.savefig(dest_file, dpi=300)
     plt.close()
     gc.collect()
 
 
-def plot_ssc_u_h_series(df, dffl, dest_file, dev):
+def plot_ssc_u_h_series(df, dffl, dest_file, device):
     """
     Plots a combined time series for SSC, Wave Orbital Velocity and water depth
     """
     sns.set_style("white")
     sns.set_style("ticks")
     # plt.figure(figsize=(14, 8))
-    # plot cosmetic vars
-    U_ticks = plot_constants.LIMITS[dev]["U_ticks"]
-    SSC_ticks = plot_constants.LIMITS[dev]["SSC_ticks"]
-    # plt.rcParams["axes.facecolor"] = "white"
+    U_ticks = plot_constants.LIMITS[device]["U_ticks"]
+    SSC_ticks = plot_constants.LIMITS[device]["SSC_ticks"]
     v_depth = VARIABLES["depth_00"]
     v_ssc = VARIABLES["ssc"]
     v_u = VARIABLES["u"]
     # weekly data
     dflist = [group for group in df.groupby(df.index.week)]
-    if dffl is not None:
+    if dffl is not None:  # floater case
         dffllist = [group for group in dffl.groupby(dffl.index.week)]
     # dflist = [group for group in df.groupby(pd.TimeGrouper(freq='7D'))]
-    fig, axes = plt.subplots(ncols=1, nrows=4)
+    fig, axes = plt.subplots(ncols=1, nrows=len(dflist))
     i = 0
-    # for j in range(0, 4):
-    for j in range(1, 5):
-        date, dfweek = dflist[j]
+    for date, dfweek in dflist:
         if dffl is not None:
-            datefl, dfweekfl = dffllist[j]
+            datefl, dfweekfl = dffllist[i]
         # dfweek_clean = dfweek.dropna(subset=["u"])
         dfweek["u"] = dfweek["u"].fillna(-1)
         ax = axes[i]
@@ -242,8 +236,6 @@ def plot_ssc_u_h_series(df, dffl, dest_file, dev):
         ax.spines["left"].set_bounds(min(lims), max(lims))
         ax.spines["right"].set_visible(False)
         ax.set_yticks(lims)
-        # ax.tick_params(axis="x", length=0.5, color="black")
-        # ax.spines["bottom"].set_bounds(ax.get_xticks()[0], ax.get_xticks()[1])
         # time
         axx = plt.gca()
         axx.xaxis.set_major_locator(mdates.HourLocator(byhour=[0, 12]))
@@ -277,7 +269,6 @@ def plot_ssc_u_h_series(df, dffl, dest_file, dev):
             ax2.scatter(dfweekfl.index, dfweekfl["ssc"], s=3,
                         c="red", label="%s at surface" % v_ssc["name"],
                         alpha="0.8")
-        # ax2.spines["right"].set_position(("outward", 5))
         lims = range(min(SSC_ticks[i]), max(SSC_ticks[i]))
         ax2.spines["right"].set_bounds(min(SSC_ticks[i]), max(SSC_ticks[i]))
         ax2.set_yticks(SSC_ticks[i])
@@ -293,11 +284,10 @@ def plot_ssc_u_h_series(df, dffl, dest_file, dev):
         lims = range(min(U_ticks[i]), max(U_ticks[i]))
         ax3.spines["right"].set_bounds(min(U_ticks[i]), max(U_ticks[i]))
         ax3.set_yticks(U_ticks[i])
-
         if i == 2:
             ax3.set_ylabel("Wave orbital velocity[%s]" % v_u["units"])
             ax3.yaxis.set_label_coords(1.075, 1.1)
-
+        # cosmetic tweaks
         ax.spines["top"].set_visible(False)
         ax2.spines["top"].set_visible(False)
         ax3.spines["top"].set_visible(False)
@@ -306,9 +296,6 @@ def plot_ssc_u_h_series(df, dffl, dest_file, dev):
         ax2.xaxis.set_visible(False)
         ax3.xaxis.set_visible(False)
 
-        # ax.grid(False)
-        # ax2.grid(False)
-        # ax3.grid(False)
         if i == 0:  # one legend is enough
             ax.figure.legend()
         i += 1
@@ -325,129 +312,145 @@ def plot_ssc_u_h_series(df, dffl, dest_file, dev):
     gc.collect()
 
 
-def plot_ssc_u_h_series_v2(df, dffl, dest_file, dev):
+def plot_ssc_u_h_weekly_series(df, dfl, dfwind, dfrain, dfpressure, dfdepth,
+                               dest_file, date, device, wek):
     """
-    Plots a combined time series for SSC, Wave Orbital Velocity and water depth
+    Plots a combined time series for SSC, Wave Orbital Velocity, water depth
+    and a series of environmental variables - rainfall, wind speed, wind dir..
     """
+    sns.set(rc={"figure.figsize": (20, 12)})
     sns.set_style("white")
     sns.set_style("ticks")
-    # plt.figure(figsize=(14, 8))
-    # plot cosmetic vars
-    U_ticks = plot_constants.LIMITS[dev]["U_ticks"]
-    SSC_ticks = plot_constants.LIMITS[dev]["SSC_ticks"]
-    # plt.rcParams["axes.facecolor"] = "white"
+    set_font_sizes()
+    # prepare ticks
+    U_ticks = plot_constants.LIMITS[device]["U_ticks"][wek]
+    SSC_ticks = plot_constants.LIMITS[device]["SSC_ticks"][wek]
+    w_ticks = plot_constants.LIMITS[device]["Wave_ticks"][wek]
     v_depth = VARIABLES["depth_00"]
     v_ssc = VARIABLES["ssc"]
     v_u = VARIABLES["u"]
-    # weekly data
-    dflist = [group for group in df.groupby(df.index.week)]
-    if dffl is not None:
-        dffllist = [group for group in dffl.groupby(dffl.index.week)]
-    # dflist = [group for group in df.groupby(pd.TimeGrouper(freq='7D'))]
-    fig, axes = plt.subplots(ncols=1, nrows=8)
-    i = 0
-    k = 0
-    # for j in range(0, 4):
-    for j in range(1, 5):
-        date, dfweek = dflist[j]
-        if dffl is not None:
-            datefl, dfweekfl = dffllist[j]
-        # dfweek_clean = dfweek.dropna(subset=["u"])
-        dfweek["u"] = dfweek["u"].fillna(-1)
-        ax = axes[i + 1]
-        ax1 = axes[i]
-        # water depth
-        ax.plot(
-            dfweek.index,
-            dfweek.depth_00,
-            linestyle=":",
-            color="black",
-            label=v_depth["name"])
-        lims = range(0, int(math.ceil(dfweek.depth_00.max())) + 1)
-        ax.set_ylim(bottom=0, top=max(lims))
-        ax.spines["left"].set_position(("outward", -5))
-        ax.spines["left"].set_bounds(min(lims), max(lims))
-        ax.spines["right"].set_visible(False)
-        ax.set_yticks(lims)
-        # ax.tick_params(axis="x", length=0.5, color="black")
-        # ax.spines["bottom"].set_bounds(ax.get_xticks()[0], ax.get_xticks()[1])
-        # time
-        axx = plt.gca()
-        axx.xaxis.set_major_locator(mdates.HourLocator(byhour=[0, 12]))
-        axx.xaxis.set_major_formatter(mdates.DateFormatter("%d-%m %H:%M",
-                                      tz=dfweek.index.tz))
-        if j == 2:
-            ax.set_ylabel("Depth [%s]" % v_depth["units"])
-            ax.yaxis.set_label_coords(-0.015, 1.05)
-        # Wave height H
-        ax1.plot(dfweek.index, dfweek["H"], color="black",
-                 label="Significant wave height")
-        ax1.yaxis.tick_left()
-        ax1.xaxis.set_visible(False)
-        ax1.set_ylim(bottom=0, top=1)
-        ax1.set_yticks([0, 1])
-        ax1.spines["right"].set_visible(False)
-        ax1.spines["top"].set_visible(False)
-        ax1.spines["bottom"].set_visible(False)
-        # ax1.spines["left"].set_position(("outward", 40))
-        ax1.spines["left"].set_bounds(0, 1)
-        if j == 2:
-            ax1.set_ylabel("Significant wave height [%s]" % v_depth["units"])
-            ax1.yaxis.set_label_coords(-0.075, 1.05)
-        # SSC
-        ax2 = ax.twinx()
-        ax2.scatter(dfweek.index, dfweek["ssc"], s=3, c="blue",
-                    label="%s at seabed" % v_ssc["name"], alpha="0.8")
-        ax2.spines["left"].set_visible(False)
-        if dffl is not None:
-            ax2.scatter(dfweekfl.index, dfweekfl["ssc"], s=3,
-                        c="red", label="%s at surface" % v_ssc["name"],
-                        alpha="0.8")
-        # ax2.spines["right"].set_position(("outward", 5))
-        lims = range(min(SSC_ticks[k]), max(SSC_ticks[k]))
-        ax2.spines["right"].set_bounds(min(SSC_ticks[k]), max(SSC_ticks[k]))
-        ax2.set_yticks(SSC_ticks[k])
-        if j == 2:
-            ax2.set_ylabel("SSC [%s]" % v_ssc["units"])
-            ax2.yaxis.set_label_coords(1.035, 1.1)
-        # Orbital Vel
-        ax3 = ax.twinx()
-        ax3.set_ylim(bottom=0, top=max(dfweek["u"]))
-        ax3.plot(dfweek.index, dfweek["u"], color="green", label=v_u["name"])
-        ax3.spines["right"].set_position(("outward", 55))
-        ax3.spines["left"].set_visible(False)
-        lims = range(min(U_ticks[k]), max(U_ticks[k]))
-        ax3.spines["right"].set_bounds(min(U_ticks[k]), max(U_ticks[k]))
-        ax3.set_yticks(U_ticks[k])
-
-        if j == 2:
-            ax3.set_ylabel("Wave orbital velocity[%s]" % v_u["units"])
-            ax3.yaxis.set_label_coords(1.075, 1.1)
-
-        ax.spines["top"].set_visible(False)
-        ax2.spines["top"].set_visible(False)
-        ax3.spines["top"].set_visible(False)
-        ax2.spines["bottom"].set_visible(False)
-        ax3.spines["bottom"].set_visible(False)
-        ax2.xaxis.set_visible(False)
-        ax3.xaxis.set_visible(False)
-
-        # ax.grid(False)
-        # ax2.grid(False)
-        # ax3.grid(False)
-        if i == 0:  # one legend is enough
-            ax.figure.legend()
-        i += 2
-        k += 1
-
+    fig, axes = plt.subplots(ncols=1, nrows=5)
+    # Water depth
+    ax = axes[4]
+    ax.plot(
+        dfdepth.index,
+        dfdepth,
+        linestyle=":",
+        color="black",
+        label=v_depth["name"])
+    ax.set_ylabel("Depth [%s]" % v_depth["units"])
+    lims = range(0, int(math.ceil(dfdepth.max())) + 1)
+    ax.set_ylim(bottom=0, top=max(lims))
+    ax.spines["left"].set_bounds(min(lims), max(lims))
+    # Orb vel
+    ax = axes[3]
+    ax.plot(df.index, df["u"], color="green", label="Wave\norbital velocity")
+    ax.set_ylabel("Wave orbital\nvelocity [%s]" % v_u["units"])
+    ax.set_ylim(bottom=0, top=df["u"].max())
+    lims = range(min(U_ticks), max(U_ticks))
+    ax.spines["left"].set_bounds(min(U_ticks), max(U_ticks))
+    ax.set_yticks(U_ticks)
+    ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.65), frameon=False)
+    # Wave height
+    ax = ax.twinx()
+    ax.plot(df.index, df["H"], color="black", label="Significant\nwave height")
+    ax.set_ylabel("Significant wave\nheight [%s]" % v_depth["units"])
+    ax.set_yticks(w_ticks)
+    ax.spines["right"].set_bounds(min(w_ticks), max(w_ticks))
+    ax.xaxis.set_visible(False)
+    ax.spines["right"].set_position(("outward", 15))
+    ax.spines["top"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+    ax.spines["left"].set_visible(False)
+    ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.35), frameon=False)
+    # SSC
+    ax = axes[2]
+    ax.scatter(df.index, df["ssc"], s=4, c="blue",
+               label="%s\nat seabed" % v_ssc["name"], alpha="0.8")
+    ax.set_ylabel("SSC [%s]" % v_ssc["units"])
+    if dfl is not None:
+        ax.scatter(dfl.index, dfl["ssc"], s=4, c="red",
+                   label="%s\nat surface" % v_ssc["name"],
+                   alpha="0.8")
+    lims = range(min(SSC_ticks), max(SSC_ticks))
+    ax.spines["left"].set_bounds(min(SSC_ticks), max(SSC_ticks))
+    ax.set_yticks(SSC_ticks)
+    ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.5), frameon=False)
+    # Wind speed and direction
+    ax = axes[1]
+    ax.scatter(dfwind.index, dfwind["speed"], s=4, c="black",
+               label="Wind speed\n[m/s]")
+    ax.set_ylabel("Wind speed [m/s]")
+    ax.set_yticks([0, 7, 14])
+    ax.spines["left"].set_bounds(0, 14)
+    ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.65), frameon=False)
+    ax = ax.twinx()
+    ax.scatter(dfwind.index, dfwind["direction"],
+               marker="x", label="Wind direction\n[degrees]")
+    ax.set_ylabel("Wind direction\n[degrees]")
+    ax.set_yticks([0, 90, 180, 270, 360])
+    ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.35), frameon=False)
+    ax.spines["right"].set_bounds(0, 360)
+    ax.xaxis.set_visible(False)
+    ax.spines["right"].set_position(("outward", 15))
+    ax.spines["top"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+    ax.spines["left"].set_visible(False)
+    # Rainfall
+    ax = axes[0]
+    ax.scatter(dfrain.index, dfrain.amount.replace(0, np.nan), s=4, c="black",
+               label="Rainfall [mm]")
+    ax.set_ylabel("Rainfall [mm]")
+    ax.set_yticks([0, 5, 10, 15])
+    ax.spines["left"].set_bounds(0, 15)
+    ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.65), frameon=False)
+    # Pressure
+    ax = ax.twinx()
+    ax.plot(dfpressure.index, dfpressure["Atmospheric pressure"],
+            label="Atmospheric\npressure [mbar]")
+    ax.set_ylabel("Atmospheric pressure\n[mbar]")
+    ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.35), frameon=False)
+    ax.set_yticks([1006, 1019, 1032])
+    ax.spines["right"].set_bounds(1006, 1032)
+    ax.xaxis.set_visible(False)
+    ax.spines["right"].set_position(("outward", 15))
+    ax.spines["top"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+    ax.spines["left"].set_visible(False)
+    dfpressure
+    for i in range(0, 5, 1):
+        axes[i].spines["top"].set_visible(False)
+        if i == 4:
+            axes[i].xaxis.set_visible(True)
+        else:
+            axes[i].xaxis.set_visible(False)
+            axes[i].spines["bottom"].set_visible(False)
+        axes[i].spines["right"].set_visible(False)
+        axes[i].set_xlim(
+            df.index.min() - pd.Timedelta("3h"), df.index.max())
     axx = plt.gca()
-    axx.xaxis.set_major_locator(mdates.DayLocator())
     axx.xaxis.set_major_locator(mdates.HourLocator(byhour=[0, 12]))
     axx.xaxis.set_major_formatter(mdates.DateFormatter("%d-%m %H:%M",
                                   tz=df.index.tz))
-    plt.subplots_adjust(hspace=0.5)
-    # plt.savefig(dest_file, dpi=200, bbox_inches='tight')
-    # free mem
+    min_date = df.index.min().strftime("%d %b")
+    max_date = df.index.min().strftime("%d %b")
+    fig.suptitle("%s - Week %d - %s to %s" %
+                 (device, wek + 1, min_date, max_date))
     fig.show()
-    # plt.close()
+    fig.savefig(dest_file, dpi=300)
+    plt.close()
     gc.collect()
+
+
+def set_font_sizes():
+    SMALL_SIZE = 10
+    MEDIUM_SIZE = 11
+    BIGGER_SIZE = 13
+
+    plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+    plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
+    plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
+    plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+    plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+    plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+    plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title

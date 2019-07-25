@@ -1,4 +1,4 @@
-import datetime
+import dateutil
 import gc
 import matplotlib.cm as cm
 import matplotlib.dates as mdates
@@ -6,15 +6,50 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import seaborn as sns
-from constants import TIMEZONE
+from constants import TIMEZONE, DATES, DATES_FORMAT
+from datetime import datetime
 from matplotlib.ticker import MultipleLocator
 from pandas.plotting import register_matplotlib_converters
 from windrose import plot_windrose
 
 
 WIND_DATA_FILE = "./data/NIWA/2010-2019/FOT wind.csv"
+WIND_EXPERIMENT_DATA_FILE = "./data/NIWA/experiment/FOT wind.csv"
 RAINFALL_DATA_FILE = "./data/NIWA/2010-2019/FOT rainfall.csv"
 PRESSURE_DATA_FILE = "./data/NIWA/2010-2019/FOT atmospheric pressure.csv"
+RAINFALL_EXP_DATA_FILE = "./data/NIWA/experiment/FOT rainfall.csv"
+
+
+def plot_rain():
+    """
+    Plots hourly rainfall for experiment dates.
+    """
+    df = pd.read_csv(
+        RAINFALL_EXP_DATA_FILE,
+        usecols=["Date(NZST)", "Amount(mm)"],
+        index_col=0,
+        parse_dates=[0],
+        na_values=["", "-"])
+    sns.set(rc={"figure.figsize": (12, 6)})
+    sns.set_style("white")
+    sns.set_style("ticks")
+    fig, ax = plt.subplots()
+    ax.bar(
+        df.index,
+        df["Amount(mm)"],
+        width=0.075,
+        edgecolor=[])
+    ax.xaxis.set_major_locator(mdates.DayLocator(interval=7))
+    ax.xaxis.set_minor_locator(mdates.DayLocator(interval=1))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%d-%B"))
+    ax.set_xlim(datetime.strptime(DATES["start"], DATES_FORMAT),
+                datetime.strptime(DATES["end"], DATES_FORMAT))
+    sns.despine(right=True, top=True)
+    ax.set_yticks(np.arange(0, 16, 2))
+    ax.spines["left"].set_bounds(0, 14)
+    ax.set_ylabel("Rainfall [mm]")
+    fig.autofmt_xdate()
+    fig.show()
 
 
 def plot_wind():
@@ -40,33 +75,37 @@ def plot_wind():
 
 def windrose_plot(df):
     """
-    Plots windrose for 2017 and
+    Plots windrose for 2017 and experiment dates
     """
-    dfpast = df[df.index.year.isin([2010, 2011, 2012, 2013, 2014, 2015,
-                2016, 2018, 2019])]
-    dfexp = df["2017-05-11 00:00:00":"2017-06-10 00:00:00"]
-    for d, y in [(dfpast, "past"), (dfexp, "experiment")]:
+    dfnoexp = df[(df.index < DATES["start"]) | (df.index >= DATES["end"])]
+    dfexp = df[DATES["start"]:DATES["end"]]
+    for d, y in [(dfnoexp, "noexp"), (dfexp, "exp")]:
         ax = plot_windrose(
             d,
             kind='bar',
             normed=True,
             opening=0.8,
             bins=np.arange(0, 14, 2),
-            edgecolor="black")
+            edgecolor="white")
         ax.set_yticks([])
-        ax.set_legend(title="Wind speed [m/s]",
-                      loc='center left',
-                      bbox_to_anchor=(-0.3, 0.5),
-                      labels=[
-                        "0-2 m/s",
-                        "2-4 m/s",
-                        "4-6 m/s",
-                        "6-8 m/s",
-                        "8-10 m/s",
-                        "10-12 m/s",
-                        "+12 m/s"])
-        plt.savefig("./plots/weather/rose_%s.png" % y, dpi=300,
-                    bbox_inches='tight')
+        legend = ax.set_legend(
+            bbox_to_anchor=(-0.25, 1),
+            title="Wind speed [m/s]",
+            loc='upper left')
+        labels = [
+            u"0 ≤ Ws < 2",
+            u"2 ≤ Ws < 4",
+            u"4 ≤ Ws < 6",
+            u"6 ≤ Ws < 8",
+            u"8 ≤ Ws < 10",
+            u"10 ≤ Ws < 12",
+            u"Ws ≥ 12"]
+        for i, l in enumerate(labels):
+            legend.get_texts()[i].set_text(l)
+        plt.savefig(
+            "./plots/weather/rose_%s.png" % y,
+            dpi=300,
+            bbox_inches='tight')
         plt.close()
         gc.collect()
 
@@ -86,7 +125,6 @@ def boxplot_wind(df):
     ax.spines["top"].set_visible(False)
     gc.collect()
     fig.savefig("./plots/weather/windboxplot.png", dpi=300)
-    # free mem
     fig.clf()
     plt.close()
     gc.collect()
@@ -135,3 +173,44 @@ def barplot_wind(df):
     fig.clf()
     plt.close()
     gc.collect()
+
+
+def get_weekly_wind():
+    df = pd.read_csv(
+        WIND_EXPERIMENT_DATA_FILE,
+        usecols=["Date(NZST)", "Dir(DegT)", "Speed(m/s)"],
+        index_col=0,
+        parse_dates=["Date(NZST)"],
+        date_parser=lambda d: pd.datetime.strptime(d, '%d/%m/%Y %H:%M'),
+        na_values=["", "-"])
+    df["speed"] = df["Speed(m/s)"]
+    df["direction"] = df["Dir(DegT)"]
+    df.index = df.index.tz_localize(TIMEZONE)
+    return [group for i, group in df.groupby(df.index.week)]
+
+
+def get_weekly_rainfall():
+    df = pd.read_csv(
+        RAINFALL_EXP_DATA_FILE,
+        usecols=["Date(NZST)", "Amount(mm)"],
+        index_col=0,
+        parse_dates=["Date(NZST)"],
+        date_parser=lambda d: pd.datetime.strptime(d, '%d/%m/%Y %H:%M'),
+        na_values=["", "-"])
+    df["amount"] = df["Amount(mm)"]
+    df.index = df.index.tz_localize(TIMEZONE)
+    return [group for i, group in df.groupby(df.index.week)]
+
+
+def get_weekly_pressure():
+    df = pd.read_csv(
+        PRESSURE_DATA_FILE,
+        usecols=["Date(NZST)", "Time(NZST)", "Pmsl(hPa)"],
+        parse_dates={"date": ["Date(NZST)", "Time(NZST)"]},
+        date_parser=lambda d: pd.datetime.strptime(d, '%d/%m/%Y %H:%M'),
+        na_values=["", "-"])
+    df["Atmospheric pressure"] = df["Pmsl(hPa)"]
+    df = df[(df.date >= DATES["start"]) & (df.date <= DATES["end"])]
+    df = df.set_index("date")
+    df.index = df.index.tz_localize(TIMEZONE)
+    return [group for i, group in df.groupby(df.index.week)]

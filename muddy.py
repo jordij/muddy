@@ -86,6 +86,25 @@ class Muddy(object):
                 else:
                     dbf.plot_ssc_u_h(None)
 
+    def ssc_u_h_weekly_plots(self, site="all"):
+        if site not in (SITES + ["all"]):
+            raise ValueError("String 'S(n)' n being 1 to 5 expected.")
+        if site != "all":  # just one instrument
+            dbf = encoder.create_device(site, "bedframe", "h5")
+            if site != "S3":
+                dfl = encoder.create_device(site, "floater", "h5")
+                dbf.plot_ssc_u_h_weekly(dfl.df_avg)
+            else:  # no floater at site 3
+                dbf.plot_ssc_u_h_weekly()
+        else:
+            # all bedframes
+            for dbf in encoder.create_devices_by_type("bedframe", "h5"):
+                if dbf.site != "S3":  # no floater
+                    dfl = encoder.create_device(dbf.site, "floater", "h5")
+                    dbf.plot_ssc_u_h_weekly(dfl.df_avg)
+                else:
+                    dbf.plot_ssc_u_h_weekly()
+
     def stats(self):
         stats.basic_stats().to_csv('./data/stats.csv')
 
@@ -94,8 +113,11 @@ class Muddy(object):
         maps.plot_sites()
         maps.plot_bathymetry()
 
-    def historical_plot(self):
+    def wind_plots(self):
         station.plot_wind()
+
+    def rain_plot(self):
+        station.plot_rain()
 
     def RSKtoH5(self, site="all", dtype="floater"):
         """ Store RSK data in h5 """
@@ -106,7 +128,7 @@ class Muddy(object):
             d.save_H5(avg=False)
         else:
             for t in INST_TYPES:  # all instruments
-                for d in encoder.create_devices_by_type(t, "h5"):
+                for d in encoder.create_devices_by_type(t, "rsk"):
                     d.save_H5(avg=False)
 
     def create_struct(self):
