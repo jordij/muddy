@@ -119,6 +119,9 @@ class Muddy(object):
     def rain_plot(self):
         station.plot_rain()
 
+    def river_plot(self):
+        station.plot_river_flows()
+
     def RSKtoH5(self, site="all", dtype="floater"):
         """ Store RSK data in h5 """
         if site not in SITES + ["all"]:

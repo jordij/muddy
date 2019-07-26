@@ -368,6 +368,7 @@ class Device(object):
         dfwindlist = station.get_weekly_wind()
         dfrainlist = station.get_weekly_rainfall()
         dfpressurelist = station.get_weekly_pressure()
+        dfrivers = station.get_weekly_rivers()
         dflist = [g for g in self.df_avg.groupby(self.df_avg.index.week)]
         if dffl is not None:
             dffllist = [g for g in dffl.groupby(dffl.index.week)]
@@ -376,12 +377,14 @@ class Device(object):
         depthlist = self.get_weekly_corrected_depth()
         i = 0
         for date, dfweek in dflist:
+            dfriverlist = [(k, val[i]) for k, val in dfrivers.items()]
             dest_file = "%s%s/%s/%s/weekly_ssc_u_h_series_%d.png" % (
                 OUTPUT_PATH,
                 self.site,
                 self.dtype,
                 AVG_FOLDER,
                 i)
+            dfweek["u"] = dfweek["u"].fillna(-1)
             plotter.plot_ssc_u_h_weekly_series(
                 dfweek,
                 dffllist[i][1],
@@ -389,6 +392,7 @@ class Device(object):
                 dfrainlist[i],
                 dfpressurelist[i],
                 depthlist[i],
+                dfriverlist,
                 dest_file,
                 date,
                 str(self),

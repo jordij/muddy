@@ -313,7 +313,7 @@ def plot_ssc_u_h_series(df, dffl, dest_file, device):
 
 
 def plot_ssc_u_h_weekly_series(df, dfl, dfwind, dfrain, dfpressure, dfdepth,
-                               dest_file, date, device, wek):
+                               dfrivers, dest_file, date, device, wek):
     """
     Plots a combined time series for SSC, Wave Orbital Velocity, water depth
     and a series of environmental variables - rainfall, wind speed, wind dir..
@@ -329,9 +329,9 @@ def plot_ssc_u_h_weekly_series(df, dfl, dfwind, dfrain, dfpressure, dfdepth,
     v_depth = VARIABLES["depth_00"]
     v_ssc = VARIABLES["ssc"]
     v_u = VARIABLES["u"]
-    fig, axes = plt.subplots(ncols=1, nrows=5)
+    fig, axes = plt.subplots(ncols=1, nrows=7)
     # Water depth
-    ax = axes[4]
+    ax = axes[6]
     ax.plot(
         dfdepth.index,
         dfdepth,
@@ -343,7 +343,7 @@ def plot_ssc_u_h_weekly_series(df, dfl, dfwind, dfrain, dfpressure, dfdepth,
     ax.set_ylim(bottom=0, top=max(lims))
     ax.spines["left"].set_bounds(min(lims), max(lims))
     # Orb vel
-    ax = axes[3]
+    ax = axes[5]
     ax.plot(df.index, df["u"], color="green", label="Wave\norbital velocity")
     ax.set_ylabel("Wave orbital\nvelocity [%s]" % v_u["units"])
     ax.set_ylim(bottom=0, top=df["u"].max())
@@ -364,7 +364,7 @@ def plot_ssc_u_h_weekly_series(df, dfl, dfwind, dfrain, dfpressure, dfdepth,
     ax.spines["left"].set_visible(False)
     ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.35), frameon=False)
     # SSC
-    ax = axes[2]
+    ax = axes[4]
     ax.scatter(df.index, df["ssc"], s=4, c="blue",
                label="%s\nat seabed" % v_ssc["name"], alpha="0.8")
     ax.set_ylabel("SSC [%s]" % v_ssc["units"])
@@ -377,10 +377,10 @@ def plot_ssc_u_h_weekly_series(df, dfl, dfwind, dfrain, dfpressure, dfdepth,
     ax.set_yticks(SSC_ticks)
     ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.5), frameon=False)
     # Wind speed and direction
-    ax = axes[1]
+    ax = axes[3]
     ax.scatter(dfwind.index, dfwind["speed"], s=4, c="black",
                label="Wind speed\n[m/s]")
-    ax.set_ylabel("Wind speed [m/s]")
+    ax.set_ylabel("Wind speed\n[m/s]")
     ax.set_yticks([0, 7, 14])
     ax.spines["left"].set_bounds(0, 14)
     ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.65), frameon=False)
@@ -397,10 +397,10 @@ def plot_ssc_u_h_weekly_series(df, dfl, dfwind, dfrain, dfpressure, dfdepth,
     ax.spines["bottom"].set_visible(False)
     ax.spines["left"].set_visible(False)
     # Rainfall
-    ax = axes[0]
+    ax = axes[2]
     ax.scatter(dfrain.index, dfrain.amount.replace(0, np.nan), s=4, c="black",
                label="Rainfall [mm]")
-    ax.set_ylabel("Rainfall [mm]")
+    ax.set_ylabel("Rainfall\n[mm]")
     ax.set_yticks([0, 5, 10, 15])
     ax.spines["left"].set_bounds(0, 15)
     ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.65), frameon=False)
@@ -408,7 +408,7 @@ def plot_ssc_u_h_weekly_series(df, dfl, dfwind, dfrain, dfpressure, dfdepth,
     ax = ax.twinx()
     ax.plot(dfpressure.index, dfpressure["Atmospheric pressure"],
             label="Atmospheric\npressure [mbar]")
-    ax.set_ylabel("Atmospheric pressure\n[mbar]")
+    ax.set_ylabel("Atmospheric\npressure [mbar]")
     ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.35), frameon=False)
     ax.set_yticks([1006, 1019, 1032])
     ax.spines["right"].set_bounds(1006, 1032)
@@ -417,10 +417,28 @@ def plot_ssc_u_h_weekly_series(df, dfl, dfwind, dfrain, dfpressure, dfdepth,
     ax.spines["top"].set_visible(False)
     ax.spines["bottom"].set_visible(False)
     ax.spines["left"].set_visible(False)
-    dfpressure
-    for i in range(0, 5, 1):
+    # Salinity
+    ax = axes[1]
+    ax.plot(df.index, df.salinity_00, c="blue", label="Salinity\nat seabed [PSU]")
+    if dfl is not None:
+        ax.plot(dfl.index, dfl.salinity_00, c="red", label="Salinity\nat surface [PSU]")
+    ax.set_ylabel("Salinity\n[PSU]")
+    ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.5), frameon=False)
+    ax.set_yticks([0, 35])
+    ax.spines["left"].set_bounds(0, 35)
+    # River flow
+    ax = axes[0]
+    for river, dfriver in dfrivers:
+        ax.plot(dfriver.index, dfriver["Flow"],
+                label=river)
+    ax.set_yticks([0, 55, 110])
+    ax.spines["right"].set_bounds(0, 110)
+    ax.set_ylabel("Water flow [m^3]")
+    ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.65), frameon=False)
+
+    for i in range(0, 7, 1):
         axes[i].spines["top"].set_visible(False)
-        if i == 4:
+        if i == 6:
             axes[i].xaxis.set_visible(True)
         else:
             axes[i].xaxis.set_visible(False)
@@ -433,7 +451,7 @@ def plot_ssc_u_h_weekly_series(df, dfl, dfwind, dfrain, dfpressure, dfdepth,
     axx.xaxis.set_major_formatter(mdates.DateFormatter("%d-%m %H:%M",
                                   tz=df.index.tz))
     min_date = df.index.min().strftime("%d %b")
-    max_date = df.index.min().strftime("%d %b")
+    max_date = df.index.max().strftime("%d %b")
     fig.suptitle("%s - Week %d - %s to %s" %
                  (device, wek + 1, min_date, max_date))
     fig.show()
@@ -445,7 +463,7 @@ def plot_ssc_u_h_weekly_series(df, dfl, dfwind, dfrain, dfpressure, dfdepth,
 def set_font_sizes():
     SMALL_SIZE = 10
     MEDIUM_SIZE = 11
-    BIGGER_SIZE = 13
+    BIGGER_SIZE = 14
 
     plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
     plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title

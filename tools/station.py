@@ -18,6 +18,44 @@ WIND_EXPERIMENT_DATA_FILE = "./data/NIWA/experiment/FOT wind.csv"
 RAINFALL_DATA_FILE = "./data/NIWA/2010-2019/FOT rainfall.csv"
 PRESSURE_DATA_FILE = "./data/NIWA/2010-2019/FOT atmospheric pressure.csv"
 RAINFALL_EXP_DATA_FILE = "./data/NIWA/experiment/FOT rainfall.csv"
+RIVERS = {
+    "Ohinemuri": "./data/WRC/Ohinemuri_Flow_Karangahake.txt",
+    "Piako": "./data/WRC/Piako_Flow_Paeroa-Tahuna.txt",
+    "Waihou": "./data/WRC/Waihou_Flow_Te_aroha.txt"
+}
+
+
+def plot_river_flows():
+    sns.set(rc={"figure.figsize": (12, 6)})
+    sns.set_style("white")
+    sns.set_style("ticks")
+    fig, ax = plt.subplots()
+    for k, v in RIVERS.items():
+        df = pd.read_csv(
+            v,
+            usecols=["Date", "Time", "Flow"],
+            parse_dates={"date": ["Date", "Time"]},
+            date_parser=lambda d: pd.datetime.strptime(d, '%d/%m/%Y %H:%M:%S'),
+            na_values=["GAP"])
+        df = df.set_index("date")
+        df.index = df.index.tz_localize(TIMEZONE)
+        df = df.resample("1h").mean()
+        ax.plot(
+            df.index,
+            df["Flow"],
+            label=k)
+    ax.set_ylabel("Water flow [m^3]")
+    ax.xaxis.set_major_locator(mdates.DayLocator(interval=7))
+    ax.xaxis.set_minor_locator(mdates.DayLocator(interval=1))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%d-%B"))
+    ax.set_xlim(df.index.min(), df.index.max())
+    ax.set_yticks([0, 25, 50, 100])
+    # ax.set_xlim(datetime.strptime(DATES["start"], DATES_FORMAT),
+    #             datetime.strptime(DATES["end"], DATES_FORMAT))
+    sns.despine(right=True, top=True)
+    fig.autofmt_xdate()
+    fig.show()
+    fig.legend()
 
 
 def plot_rain():
@@ -214,3 +252,20 @@ def get_weekly_pressure():
     df = df.set_index("date")
     df.index = df.index.tz_localize(TIMEZONE)
     return [group for i, group in df.groupby(df.index.week)]
+
+
+def get_weekly_rivers():
+    rivers = {}
+    for k, v in RIVERS.items():
+        df = pd.read_csv(
+            v,
+            usecols=["Date", "Time", "Flow"],
+            parse_dates={"date": ["Date", "Time"]},
+            date_parser=lambda d: pd.datetime.strptime(d, '%d/%m/%Y %H:%M:%S'),
+            na_values=["GAP"])
+        df = df.set_index("date")
+        df.index = df.index.tz_localize(TIMEZONE)
+        df = df[(df.index >= DATES["start"]) & (df.index <= DATES["end"])]
+        df = df.resample("1h").mean()
+        rivers[k] = [group for i, group in df.groupby(df.index.week)]
+    return rivers
