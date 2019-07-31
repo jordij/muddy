@@ -6,7 +6,7 @@ import pyrsktools
 
 from burst import BurstFourier, BurstWelch, BurstPeaks
 from constants import (H5_PATH, OUTPUT_PATH, PROCESSED_PATH, VARIABLES,
-                       TIMEZONE, AVG_FOLDER, Z_ELEVATION)
+                       TIMEZONE, AVG_FOLDER, Z_ELEVATION, DEVICES)
 from tools import plotter, station
 
 
@@ -93,8 +93,7 @@ class Device(object):
                 self.df_avg = pd.read_hdf(self.get_H5_avg_path(), "df")
             except FileNotFoundError:
                 self.set_df_avg(save=True)
-            finally:
-                self.set_tide()
+            self.set_tide()
             self.logger.info(
                 "Using %s as a dataframe source for averaged %s",
                 self.get_H5_avg_path(),
@@ -154,8 +153,8 @@ class Device(object):
         """
         Calculate trend of tide Ebb/Flood depending on next row's depth
         """
-        # if "tide" not in self.df_avg.columns:
-        self.df_avg["Tide"] = np.where(
+        if "Tide" not in self.df_avg.columns:
+            self.df_avg["Tide"] = np.where(
                 self.df_avg["depth_00"] > self.df_avg["depth_00"].shift(-1),
                 "Ebb",
                 "Flood")
@@ -177,6 +176,10 @@ class Device(object):
                     self.T,
                     self.SSC),
                 axis=1)
+            # S1 floater sturated, remove max values
+            if self.site == "S1" and self.dtype == "floater":
+                d = self.get_dict_device()
+                self.df.loc[self.df["ssc"] == d["ssc_saturated_value"], ["ssc"]] = np.NaN
 
     def save_H5(self, avg=False):
         """
@@ -283,6 +286,11 @@ class Device(object):
                 len(self.df_avg)) * 100
         self.logger.info("Time in the water %f", perc)
         return round(perc, 2)
+
+    def get_dict_device(self):
+        """ Return dict element defined in constants file """
+        return next(item for item in DEVICES if (item["site"] == self.site and
+                    item["type"] == self.dtype))
 
     def __str__(self):
         return ("%s %s") % (self.site, self.dtype.capitalize())

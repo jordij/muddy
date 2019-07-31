@@ -1,7 +1,7 @@
 import fire
 import logging
 
-from constants import SITES, INST_TYPES
+from constants import SITES, INST_TYPES, EVENT_DATES
 from tools import plotter, encoder, structure, stats, station
 import maps
 
@@ -104,6 +104,21 @@ class Muddy(object):
                     dbf.plot_ssc_u_h_weekly(dfl.df_avg)
                 else:
                     dbf.plot_ssc_u_h_weekly()
+
+    def ssc_series_plot(self, dtype="bedframe"):
+        if dtype not in INST_TYPES:
+            raise ValueError("Type floater or bedframe expected.")
+        devs = encoder.create_devices_by_type(dtype, "h5")
+        return plotter.plot_ssc_series(devs)
+
+    def ssc_heatmap_plot(self, dtype="bedframe"):
+        if dtype not in INST_TYPES:
+            raise ValueError("Type floater or bedframe expected.")
+        devs = encoder.create_devices_by_type(dtype, "h5")
+        return plotter.plot_ssc_heatmap(
+                devs,
+                start=EVENT_DATES["start"],
+                end=EVENT_DATES["end"])
 
     def stats(self):
         stats.basic_stats().to_csv('./data/stats.csv')

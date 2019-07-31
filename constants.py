@@ -18,6 +18,10 @@ BASEMAP_IMG_PATH = "./data/lds-chart-nz-533-firth-of-thames-JPEG/chart-nz-" \
 
 # start and end experiment dates, exactly 4 weeks - 28 days
 # NZST
+EVENT_DATES = {
+    "start": "2017-05-17 00:00:00",
+    "end": "2017-05-17 06:00:00",
+}
 DATES = {
     "start": "2017-05-15 00:00:00",
     "end": "2017-06-12 00:00:00",
@@ -69,7 +73,7 @@ VARIABLES = {
     "salinity_00": {
         "name": "Salinity", "units": "PSU"
     },
-    # interpolated by OBS calibr.
+    # from interpolating OBS calibration values
     "ssc": {
         "name": "SSC", "units": "mg/l"
     },
@@ -102,6 +106,7 @@ DEVICES = [
         "burst_samples": 1024,  # per burst
         "interval": 600,  # between start of each burst
         "min_depth": 0.05,  # m
+        "ssc_saturated_value": 2115,  # del max values as instrument saturated
         "T": [
             0.365204377190083,
             175.693553881483,

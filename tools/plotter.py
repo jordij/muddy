@@ -472,3 +472,82 @@ def set_font_sizes():
     plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
     plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
     plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+
+
+def plot_ssc_series(devices):
+    sns.set(rc={"figure.figsize": (14, 10)})
+    sns.set_style("white")
+    sns.set_style("ticks")
+    v_ssc = VARIABLES["ssc"]
+    colours = {
+        "S1": "red",
+        "S2": "blue",
+        "S3": "green",
+        "S4": "black",
+        "S5": "purple",
+    }
+    ddict = {}
+    for d in devices:
+        for gdate, df in d.df_avg.groupby(d.df_avg.index.week):
+            if d.site not in ddict:
+                ddict[d.site] = []
+            ddict[d.site].append(df)
+    fig, axes = plt.subplots(ncols=1, nrows=4)  # 4 weeks
+    j = 0
+    for key, val in ddict.items():
+        i = 0
+        for df in val:
+            axes[i].scatter(df.index, df.ssc, label=key,
+                            s=5, alpha=0.8, c=colours[key])
+            if j == 0:
+                # time
+                axes[i].xaxis.set_major_locator(
+                    mdates.HourLocator(byhour=[0, 12]))
+                axes[i].xaxis.set_major_formatter(
+                    mdates.DateFormatter("%d-%m %H:%M", tz=df.index.tz))
+            i += 1
+        j += 1
+    # one axis label and legend enough
+    axes[2].set_ylabel("SSC [%s]" % v_ssc["units"])
+    axes[2].yaxis.set_label_coords(-0.035, 1.1)
+    axes[2].legend(title="Sites", bbox_to_anchor=(1.1, 1.35))
+    fig.show()
+    gc.collect()
+
+
+def plot_ssc_heatmap(devices, start=None, end=None):
+    sns.set_style("white")
+    sns.set_style("ticks")
+    v_ssc = VARIABLES["ssc"]
+    df_merged = devices[0].df_avg
+    for i in range(1, len(devices)):
+        suffix = "_%s" % devices[i].site
+        df_merged = df_merged.join(devices[i].df_avg, rsuffix=suffix)
+        df_merged[devices[i].site] = df_merged["ssc%s" % suffix]
+    df_merged[devices[0].site] = df_merged["ssc"]
+    df_ssc = df_merged[[d.site for d in devices]]
+    if start is not None and end is not None:
+        df_ssc = df_ssc[start:end]
+        fig, ax = plt.subplots(figsize=(100, 10))
+        df_ssc.index = df_ssc.index.strftime('%d-%m %H:%M')
+        sns.heatmap(df_ssc.T, vmin=0, vmax=4000, cmap='RdYlBu_r', ax=ax,
+                    square=True, xticklabels=36, yticklabels=True,
+                    linewidths=.0)
+        ax.tick_params(axis="y", which="major", labelsize=9)
+        ax.tick_params(axis="x", which="major", labelsize=9)
+    else:
+
+        fig, axes = plt.subplots(ncols=1, nrows=4, figsize=(28, 4))
+        cbar_ax = fig.add_axes([0.925, .108, .01, .8])
+        i = 0
+        for date, df in df_ssc.groupby(df_ssc.index.week):
+            df.index = df.index.strftime('%d-%m %H:%M')
+            sns.heatmap(df.T, vmin=0, vmax=4000, cmap='RdYlBu_r', ax=axes[i],
+                        xticklabels=72, yticklabels=True, linewidths=.0,
+                        cbar=(i == 0), cbar_ax= cbar_ax if i == 0 else None)
+            axes[i].tick_params(axis="y", which="major", labelsize=9)
+            axes[i].tick_params(axis="x", which="major", labelsize=9)
+            i += 1
+        cbar_ax.set_ylabel("SSC [%s]" % v_ssc["units"])
+    fig.show()
+    gc.collect()

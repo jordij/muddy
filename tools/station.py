@@ -39,6 +39,7 @@ def plot_river_flows():
             na_values=["GAP"])
         df = df.set_index("date")
         df.index = df.index.tz_localize(TIMEZONE)
+        df = df[(df.index >= DATES["start"]) & (df.index <= DATES["end"])]
         df = df.resample("1h").mean()
         ax.plot(
             df.index,
@@ -50,8 +51,8 @@ def plot_river_flows():
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%d-%B"))
     ax.set_xlim(df.index.min(), df.index.max())
     ax.set_yticks([0, 25, 50, 100])
-    # ax.set_xlim(datetime.strptime(DATES["start"], DATES_FORMAT),
-    #             datetime.strptime(DATES["end"], DATES_FORMAT))
+    ax.set_xlim(datetime.strptime(DATES["start"], '%Y-%m-%d %H:%M:%S'),
+                datetime.strptime(DATES["end"], '%Y-%m-%d %H:%M:%S'))
     sns.despine(right=True, top=True)
     fig.autofmt_xdate()
     fig.show()
