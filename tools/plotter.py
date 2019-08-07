@@ -16,9 +16,9 @@ register_matplotlib_converters()
 
 def plot_obs_calibration():
     """ Plot OBS calibration for all available devices"""
+    sns.set(rc={"figure.figsize": (9, 8)})
     sns.set_style("white")
     sns.set_style("ticks")
-    plt.figure(figsize=(9, 8))
     for t in INST_TYPES:
         devs = encoder.create_devices_by_type(t, "h5")
         fig, ax = plt.subplots()
@@ -39,7 +39,7 @@ def plot_obs_calibration():
 def plot_all_hourly(dest_file, date, df, vars, minh=0, maxh=24, freqh=1):
     """ Plot given vars from given dataframe and save in dest_file """
     print("Generating %s" % dest_file)
-    sns.set(rc={"figure.figsize": (8, 12)})
+    sns.set(rc={"figure.figsize": (12, 16)})
     fig, axes = plt.subplots(ncols=1, nrows=len(vars), sharex=True)
     df.plot(subplots=True, linewidth=0.25, ax=axes)
     for i, ax in enumerate(axes):
@@ -51,43 +51,54 @@ def plot_all_hourly(dest_file, date, df, vars, minh=0, maxh=24, freqh=1):
         ax.tick_params(axis="y", which="minor", labelsize=8)
         ax.tick_params(axis="x", which="major", labelsize=10)
         ax.tick_params(axis="x", which="minor", labelsize=8)
+        # give an extra 30mins at boths ends to have some extra margin
+        ax.set_xlim(
+            datetime.datetime(
+                date.year, date.month, date.day, hour=0,
+                minute=0, tzinfo=df.index.tz) - pd.Timedelta("30m"),
+            datetime.datetime(
+                date.year, date.month, date.day, hour=23,
+                minute=59, tzinfo=df.index.tz) + pd.Timedelta("30m"))
         # set name and units for each var/axes
         ax.set(xlabel="%s" % str(date), ylabel=vars[i]["units"])
         ax.legend([vars[i]["name"]])
     fig.autofmt_xdate()
-    plt.savefig(dest_file, dpi=300)
+    fig.savefig(dest_file, dpi=300)
     # free mem
     fig.clf()
     plt.close()
     gc.collect()
 
 
-def plot_hourly_turb_depth_avg(df, date, dest_file, title):
+def plot_hourly_ssc_depth_avg(df, date, dest_file, title):
     """ Plot given vars """
     print("Generating %s" % dest_file)
-    sns.set(rc={"figure.figsize": (8, 8)})
+    sns.set(rc={"figure.figsize": (16, 8)})
     fig, axes = plt.subplots(ncols=1, nrows=2, sharex=True)
     fig.suptitle(title)
     df.plot(subplots=True, ax=axes, style=".", legend=None)
-    ylabels = ["Turbidity [NTU]", "Depth [m]"]
+    ylabels = ["SSC [mg/l]", "Depth [m]"]
     for i, ax in enumerate(axes):
         ax.xaxis.set_major_locator(mdates.HourLocator(interval=1))
         ax.xaxis.set_major_formatter(
             mdates.DateFormatter("%H:%M", tz=df.index.tz))
-        # always X ticks from 00h to 23h
+        # give an extra hours at boths ends to have some extra margin
         ax.set_xlim(
-            datetime.datetime(date.year, date.month, date.day, hour=0,
-                              minute=0, tzinfo=df.index.tz),
-            datetime.datetime(date.year, date.month, date.day, hour=23,
-                              minute=0, tzinfo=df.index.tz))
+            datetime.datetime(
+                date.year, date.month, date.day, hour=0,
+                minute=0, tzinfo=df.index.tz) - pd.Timedelta("1h"),
+            datetime.datetime(
+                date.year, date.month, date.day, hour=23,
+                minute=59, tzinfo=df.index.tz) + pd.Timedelta("1h"))
+        ax.set_ylim(bottom=0)
         ax.tick_params(axis="y", which="major", labelsize=10)
         ax.tick_params(axis="y", which="minor", labelsize=8)
-        ax.tick_params(axis="x", which="major", labelsize=10)
-        ax.tick_params(axis="x", which="minor", labelsize=8)
+        ax.tick_params(axis="x", which="major", labelsize=8)
+        ax.tick_params(axis="x", which="minor", labelsize=6)
         # set name and units for each var/axes
         ax.set(xlabel=str(date), ylabel=ylabels[i])
-        if i == 1:  # depth
-            ax.axhline(0, ls="--", color="red")
+        # if i == 1:  # depth
+        #     ax.axhline(0, ls="--", color="red")
     fig.autofmt_xdate()
     plt.savefig(dest_file, dpi=300)
     # free mem
@@ -100,16 +111,12 @@ def plot_ssc_avg(df, dest_file, title):
     """ Plot SSC vs Salinity and Depth """
     print("Generating %s" % dest_file)
     xvars = ["depth_00", "salinity_00"]
-    # yvars = ["ssc", "ssc_sd"]
     yvars = ["ssc"]
     sns.set_style("white")
     sns.set_style("ticks")
-    plt.figure(figsize=(8, 8))
     sns_plot = sns.pairplot(
         df,
         height=8, aspect=1.5,
-        kind="reg",
-        plot_kws={"line_kws": {"color": "red"}},
         x_vars=xvars,
         y_vars=yvars,
         dropna=True)
@@ -118,16 +125,10 @@ def plot_ssc_avg(df, dest_file, title):
         sns_plot.axes[0, i].set_xlabel("%s [%s]" % (
             VARIABLES[v]["name"],
             VARIABLES[v]["units"]))
-        # sns_plot.axes[1, i].margins(0, 0)
     for i, v in enumerate(yvars):
         sns_plot.axes[i, 0].set_ylabel("%s [%s]" % (
             VARIABLES[v]["name"],
             VARIABLES[v]["units"]))
-        # sns_plot.axes[i, 0].margins(0, 0)
-    # for axes in sns_plot.axes:
-    #     for ax in axes:
-    #         ax.margins(0, 0)
-    # sns_plot.fig.tight_layout()
     sns_plot.fig.subplots_adjust(top=.95)
     sns_plot.savefig(dest_file, dpi=300)
     # free mem
@@ -174,7 +175,7 @@ def plot_ssc_u_log(df, dest_file, title):
     sns.set(rc={"figure.figsize": (10, 8)})
     sns.set_style("white")
     sns.set_style("ticks")
-    df["ssc"] = np.log(df["ssc"])
+    df["ssc"] = np.log10(df["ssc"].astype(float))
     df["u"] = np.power(df["u"], 3)
     fig, ax = plt.subplots()
     sns.scatterplot(
@@ -193,6 +194,7 @@ def plot_ssc_u_log(df, dest_file, title):
         VARIABLES["ssc"]["units"]))
     sns.despine(right=True, top=True)
     ax.legend(loc='center right', bbox_to_anchor=(1.1, 0.5), ncol=1)
+    ax.set_ylim(bottom=0)
     fig.savefig(dest_file, dpi=300)
     plt.close()
     gc.collect()
@@ -202,6 +204,7 @@ def plot_ssc_u_h_series(df, dffl, dest_file, device):
     """
     Plots a combined time series for SSC, Wave Orbital Velocity and water depth
     """
+    sns.set(rc={"figure.figsize": (20, 12)})
     sns.set_style("white")
     sns.set_style("ticks")
     # plt.figure(figsize=(14, 8))
@@ -305,10 +308,11 @@ def plot_ssc_u_h_series(df, dffl, dest_file, device):
     axx.xaxis.set_major_locator(mdates.HourLocator(byhour=[0, 12]))
     axx.xaxis.set_major_formatter(mdates.DateFormatter("%d-%m %H:%M",
                                   tz=df.index.tz))
-    # plt.savefig(dest_file, dpi=200, bbox_inches='tight')
+    fig.suptitle(str(device))
+    plt.savefig(dest_file, dpi=300, bbox_inches='tight')
     # free mem
-    fig.show()
-    # plt.close()
+    # fig.show()
+    plt.close()
     gc.collect()
 
 
@@ -344,6 +348,7 @@ def plot_ssc_u_h_weekly_series(df, dfl, dfwind, dfrain, dfpressure, dfdepth,
     ax.spines["left"].set_bounds(min(lims), max(lims))
     # Orb vel
     ax = axes[5]
+    df["u"] = df["u"].fillna(-1)
     ax.plot(df.index, df["u"], color="green", label="Wave\norbital velocity")
     ax.set_ylabel("Wave orbital\nvelocity [%s]" % v_u["units"])
     ax.set_ylim(bottom=0, top=df["u"].max())
@@ -519,19 +524,25 @@ def plot_ssc_heatmap(devices, start=None, end=None):
     sns.set_style("white")
     sns.set_style("ticks")
     v_ssc = VARIABLES["ssc"]
+    # merge SSC from all devices into a single df
     df_merged = devices[0].df_avg
     for i in range(1, len(devices)):
         suffix = "_%s" % devices[i].site
-        df_merged = df_merged.join(devices[i].df_avg, rsuffix=suffix)
+        df_merged = df_merged.join(devices[i].df_avg,
+                                   how="outer",
+                                   rsuffix=suffix)
         df_merged[devices[i].site] = df_merged["ssc%s" % suffix]
     df_merged[devices[0].site] = df_merged["ssc"]
-    df_ssc = df_merged[[d.site for d in devices]]
+    # df_ssc = np.log10(df_merged[[d.site for d in devices]].astype(float))
+    df_ssc = df_merged[[d.site for d in devices]].astype(float)
+    vmax = df_ssc[[d.site for d in devices]].max().max()
+    vmin = df_ssc[[d.site for d in devices]].min().min()
     if start is not None and end is not None:
         df_ssc = df_ssc[start:end]
-        fig, ax = plt.subplots(figsize=(100, 10))
+        fig, ax = plt.subplots(figsize=(10, 10))
         df_ssc.index = df_ssc.index.strftime('%d-%m %H:%M')
-        sns.heatmap(df_ssc.T, vmin=0, vmax=4000, cmap='RdYlBu_r', ax=ax,
-                    square=True, xticklabels=36, yticklabels=True,
+        sns.heatmap(df_ssc.T, vmin=vmin, vmax=vmax, cmap='RdYlBu_r', ax=ax,
+                    square=False, xticklabels=36, yticklabels=True,
                     linewidths=.0)
         ax.tick_params(axis="y", which="major", labelsize=9)
         ax.tick_params(axis="x", which="major", labelsize=9)
@@ -541,12 +552,18 @@ def plot_ssc_heatmap(devices, start=None, end=None):
         cbar_ax = fig.add_axes([0.925, .108, .01, .8])
         i = 0
         for date, df in df_ssc.groupby(df_ssc.index.week):
+            tzinfo = df.index.tz
             df.index = df.index.strftime('%d-%m %H:%M')
-            sns.heatmap(df.T, vmin=0, vmax=4000, cmap='RdYlBu_r', ax=axes[i],
+            sns.heatmap(df.T, vmin=vmin, vmax=1000, cmap='RdYlBu_r', ax=axes[i],
                         xticklabels=72, yticklabels=True, linewidths=.0,
-                        cbar=(i == 0), cbar_ax= cbar_ax if i == 0 else None)
+                        cbar=(i == 0), cbar_ax=cbar_ax if i == 0 else None)
             axes[i].tick_params(axis="y", which="major", labelsize=9)
             axes[i].tick_params(axis="x", which="major", labelsize=9)
+            # axes[i].set_xlim(df.index.min(),
+            #                  df.index.max())
+            # axes[i].xaxis.set_major_locator(mdates.HourLocator(byhour=[0, 12]))
+            # axes[i].xaxis.set_major_formatter(
+            #     mdates.DateFormatter("%d-%m %H:%M", tz=tzinfo))
             i += 1
         cbar_ax.set_ylabel("SSC [%s]" % v_ssc["units"])
     fig.show()

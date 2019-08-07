@@ -109,16 +109,21 @@ class Muddy(object):
         if dtype not in INST_TYPES:
             raise ValueError("Type floater or bedframe expected.")
         devs = encoder.create_devices_by_type(dtype, "h5")
-        return plotter.plot_ssc_series(devs)
+        plotter.plot_ssc_series(devs)
 
-    def ssc_heatmap_plot(self, dtype="bedframe"):
+    def ssc_heatmap_plot(self, dtype="bedframe", event=False):
         if dtype not in INST_TYPES:
             raise ValueError("Type floater or bedframe expected.")
         devs = encoder.create_devices_by_type(dtype, "h5")
-        return plotter.plot_ssc_heatmap(
+        if dtype == "bedframe":  # swap 3 and 4
+            devs[2], devs[3] = devs[3], devs[2]
+        if event:
+            plotter.plot_ssc_heatmap(
                 devs,
                 start=EVENT_DATES["start"],
                 end=EVENT_DATES["end"])
+        else:
+            plotter.plot_ssc_heatmap(devs)
 
     def stats(self):
         stats.basic_stats().to_csv('./data/stats.csv')

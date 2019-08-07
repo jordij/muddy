@@ -7,6 +7,7 @@ import pyrsktools
 from burst import BurstFourier, BurstWelch, BurstPeaks
 from constants import (H5_PATH, OUTPUT_PATH, PROCESSED_PATH, VARIABLES,
                        TIMEZONE, AVG_FOLDER, Z_ELEVATION, DEVICES)
+from intervals import DATA_INTERVALS
 from tools import plotter, station
 
 
@@ -131,7 +132,7 @@ class Device(object):
         self.df_avg["u"] = np.NaN
         self.df_avg["T"] = np.NaN
         self.df_avg["H"] = np.NaN
-        df = self.clean_df(self.df, resample=False)
+        df = self.clean_df(self.df, average=False)
         # Calculate U for each available burst
         start_date = self.df_avg.index[0]
         while start_date <= self.df_avg.index[-1]:
@@ -179,7 +180,9 @@ class Device(object):
             # S1 floater sturated, remove max values
             if self.site == "S1" and self.dtype == "floater":
                 d = self.get_dict_device()
-                self.df.loc[self.df["ssc"] == d["ssc_saturated_value"], ["ssc"]] = np.NaN
+                self.df.loc[
+                    self.df["ssc"] == d["ssc_saturated_value"], ["ssc"]
+                    ] = np.NaN
 
     def save_H5(self, avg=False):
         """
@@ -206,12 +209,12 @@ class Device(object):
         """
         if df is None:
             df = self.df
-        burst_vars = [
+        bvars = [
             "salinity_00",
             "temperature_00",
             "seapressure_00",
             "depth_00"]
-        dfburst = df[start:end][:self.sr][burst_vars]
+        dfburst = df[(df.index >= start) & (df.index < end)][:self.sr][bvars]
         # discard burst with missing values or NaN
         if ((len(dfburst) < (self.sr/2)) or
             (dfburst.isnull().values.sum() != 0) or
@@ -233,26 +236,31 @@ class Device(object):
         in self.data_path_avg file
         """
         self.set_ssc()
-        self.df_avg = self.clean_df(self.df, resample=True)
+        self.df_avg = self.clean_df(self.df)
         self.df_avg["ssc_sd"] = self.df.ssc.resample("%ss" % self.i).std()
         if self.dtype == "bedframe":
             self._calc_bursts()
         self.save_H5(avg=save)
 
-    def clean_df(self, df, resample=True):
+    def clean_df(self, df, average=True):
         """ Clean and average given dataframe df """
-        df = df[df.salinity_00.notnull() & (df.salinity_00 > 0)]
-        self.logger.info("Length of dataset after cleaning salinity: %i",
-                         len(df))
-        df = df[df.turbidity_00.notnull() & (df.turbidity_00 > 3)]
-        self.logger.info("Length of dataset after cleaning turbidity: %i",
-                         len(df))
-        df = df[df.depth_00.notnull() & (df.depth_00 > 0.025)]
-        self.logger.info("Length of dataset after cleaning depth: %i", len(df))
-        if resample:
-            return df.resample("%ss" % self.i, label="left").mean()
+        intervals = DATA_INTERVALS[self.__str__()]
+        if average:
+            df = df.resample("%ss" % self.i, label="left").mean()
+            dfr = pd.DataFrame(
+                    index=df.index,
+                    columns=df.columns) if intervals else df
         else:
-            return df
+            dfr = pd.DataFrame(columns=df.columns) if intervals else df
+        if intervals:
+            for interval in intervals:
+                if average:
+                    dfr.update(df[interval[0]:interval[1]])
+                else:
+                    dfr = dfr.append(df[interval[0]:interval[1]])
+        # just in case some dodgy data sneaked into the intervals
+        dfr.loc[dfr.turbidity_00 < 0, "turbidity_00"] = np.nan
+        return dfr
 
     def get_depth_stats(self):
         """
@@ -308,6 +316,7 @@ class Device(object):
                 self.dtype,
                 str(date))
             plotter.plot_all_hourly(dest_file, date, dfday, self.vars)
+            title = "%s %s" % (str(self), str(date))
             # averaged turb and depth (W/O cleaning it)
             dest_file = "%s%s/%s/%s/%s.png" % (
                 OUTPUT_PATH,
@@ -315,19 +324,18 @@ class Device(object):
                 self.dtype,
                 AVG_FOLDER,
                 str(date))
-            dfr = dfday.resample("%ss" % self.i).mean()
-            title = "%s %s" % (str(self), str(date))
-            plotter.plot_hourly_turb_depth_avg(
-                dfr[["turbidity_00", "depth_00"]],
-                date,
-                dest_file,
-                title)
+            # dfr = dfday.resample("%ss" % self.i).mean()
+            # plotter.plot_hourly_ssc_depth_avg(
+            #     dfr[["ssc", "depth_00"]],
+            #     date,
+            #     dest_file,
+            #     title)
             # averaged CLEAN turb and depth
-            dfr = self.clean_df(dfday)
+            dfr = self.df_avg[self.df_avg.index.date == date]
             parts = dest_file.split(".")
             dest_file = ".".join(parts[:-1]) + "_clean" + "." + parts[-1]
-            plotter.plot_hourly_turb_depth_avg(
-                dfr[["turbidity_00", "depth_00"]],
+            plotter.plot_hourly_ssc_depth_avg(
+                dfr[["ssc", "depth_00"]],
                 date,
                 dest_file,
                 title)
@@ -344,7 +352,7 @@ class Device(object):
         plotter.plot_ssc_avg(self.df_avg, dest_file, str(self))
 
     def plot_ssc_u(self):
-        """ Plots SSC vs Significant wave height """
+        """ Plots SSC vs wave orbital velocity """
         dest_file = "%s%s/%s/%s/%s_%s_ssc_vs_u.png" % (
             OUTPUT_PATH,
             self.site,
@@ -364,11 +372,12 @@ class Device(object):
 
     def plot_ssc_u_h(self, dffl=None):
         """ Plots a time series for SSC, Sig wave height and water depth """
-        dest_file = "%s%s/%s/%s/ssc_u_h_series.png" % (
+        dest_file = "%s%s/%s/%s/%s_ssc_u_h_series.png" % (
             OUTPUT_PATH,
             self.site,
             self.dtype,
-            AVG_FOLDER)
+            AVG_FOLDER,
+            str(self).lower())
         plotter.plot_ssc_u_h_series(self.df_avg, dffl, dest_file, str(self))
 
     def plot_ssc_u_h_weekly(self, dffl=None):

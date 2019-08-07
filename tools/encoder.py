@@ -1,10 +1,7 @@
-import logging
-import numpy as np
 import pandas as pd
 import pyrsktools
 
-from constants import (RAW_PATH, PROCESSED_PATH, H5_PATH, AVG_FOLDER,
-                       VARIABLES, TIMEZONE, DEVICES)
+from constants import RAW_PATH, PROCESSED_PATH, H5_PATH, TIMEZONE, DEVICES
 from device import Device
 
 

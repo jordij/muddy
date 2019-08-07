@@ -45,7 +45,7 @@ def plot_river_flows():
             df.index,
             df["Flow"],
             label=k)
-    ax.set_ylabel("Water flow [m^3]")
+    ax.set_ylabel("Flow discharge [m^3/s]")
     ax.xaxis.set_major_locator(mdates.DayLocator(interval=7))
     ax.xaxis.set_minor_locator(mdates.DayLocator(interval=1))
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%d-%B"))

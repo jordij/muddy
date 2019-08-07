@@ -1,4 +1,4 @@
-# MUDDY - Sediment Dynamics
+# MUDDY - Sediment Dynamics in the FoT
 
 ## Requirements
 

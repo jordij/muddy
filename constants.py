@@ -18,13 +18,14 @@ BASEMAP_IMG_PATH = "./data/lds-chart-nz-533-firth-of-thames-JPEG/chart-nz-" \
 
 # start and end experiment dates, exactly 4 weeks - 28 days
 # NZST
-EVENT_DATES = {
-    "start": "2017-05-17 00:00:00",
-    "end": "2017-05-17 06:00:00",
-}
 DATES = {
     "start": "2017-05-15 00:00:00",
     "end": "2017-06-12 00:00:00",
+}
+# Storm? dates
+EVENT_DATES = {
+    "start": "2017-05-17 00:00:00",
+    "end": "2017-05-20 00:00:00",
 }
 DATES_FORMAT = "%Y-%m-%d %H-%M-%S"
 # transect
