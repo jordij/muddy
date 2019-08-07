@@ -1,4 +1,3 @@
-import dateutil
 import gc
 import matplotlib.cm as cm
 import matplotlib.dates as mdates
@@ -9,7 +8,6 @@ import seaborn as sns
 from constants import TIMEZONE, DATES, DATES_FORMAT
 from datetime import datetime
 from matplotlib.ticker import MultipleLocator
-from pandas.plotting import register_matplotlib_converters
 from windrose import plot_windrose
 
 
