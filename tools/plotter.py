@@ -108,7 +108,7 @@ def plot_hourly_ssc_depth_avg(df, date, dest_file, title):
 
 
 def plot_ssc_avg(df, dest_file, title):
-    """ Plot SSC vs Salinity and Depth """
+    """ Plot SSC vs  nd Depth """
     print("Generating %s" % dest_file)
     xvars = ["depth_00", "salinity_00"]
     yvars = ["ssc"]
@@ -465,6 +465,174 @@ def plot_ssc_u_h_weekly_series(df, dfl, dfwind, dfrain, dfpressure, dfdepth,
     gc.collect()
 
 
+def plot_event(title, dfrain, dfrivers, dfpressure, dfwind, df, dfl):
+    sns.set(rc={"figure.figsize": (12, 16)})
+    sns.set_style("white")
+    sns.set_style("ticks")
+    set_font_sizes()
+    # prepare ticks
+    # U_ticks = plot_constants.LIMITS[device]["U_ticks"][wek]
+    # SSC_ticks = plot_constants.LIMITS[device]["SSC_ticks"][wek]
+    # w_ticks = plot_constants.LIMITS[device]["Wave_ticks"][wek]
+    v_depth = VARIABLES["depth_00"]
+    v_ssc = VARIABLES["ssc"]
+    v_u = VARIABLES["u"]
+    fig, axes = plt.subplots(ncols=1, nrows=7)
+    # Water depth
+    ax = axes[6]
+    ax.plot(
+        df.index,
+        df.depth_00,
+        linestyle=":",
+        color="black",
+        label=v_depth["name"])
+    ax.set_ylabel("Depth [%s]" % v_depth["units"])
+    lims = range(0, int(math.ceil(df.depth_00.max())) + 1)
+    ax.set_ylim(bottom=0, top=max(lims))
+    ax.spines["left"].set_bounds(min(lims), max(lims))
+    # Orb vel
+    ax = axes[5]
+    df["u"] = df["u"].fillna(-10)
+    ax.scatter(df.index, df["u"], s=3, color="green", label="Wave\norbital velocity")
+    ax.set_ylabel("Wave orbital\nvelocity [%s]" % v_u["units"])
+    ax.set_ylim(bottom=0, top=df["u"].max())
+    # lims = range(min(U_ticks), max(U_ticks))
+    # ax.spines["left"].set_bounds(min(U_ticks), max(U_ticks))
+    # ax.set_yticks(U_ticks)
+    ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.65), frameon=False)
+    # Wave height
+    ax = ax.twinx()
+    ax.plot(df.index, df["H"], color="black", label="Significant\nwave height")
+    ax.set_ylabel("Significant wave\nheight [%s]" % v_depth["units"])
+    # ax.set_yticks(w_ticks)
+    # ax.spines["right"].set_bounds(min(w_ticks), max(w_ticks))
+    ax.xaxis.set_visible(False)
+    ax.spines["right"].set_position(("outward", 15))
+    ax.spines["top"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+    ax.spines["left"].set_visible(False)
+    ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.35), frameon=False)
+    # SSC
+    ax = axes[4]
+    ax.scatter(df.index, df["ssc"], s=4, c="blue",
+               label="%s\nat seabed" % v_ssc["name"], alpha="0.8")
+    ax.set_ylabel("SSC [%s]" % v_ssc["units"])
+    if dfl is not None:
+        ax.scatter(dfl.index, dfl["ssc"], s=4, c="red",
+                   label="%s\nat surface" % v_ssc["name"],
+                   alpha="0.8")
+    # lims = range(min(SSC_ticks), max(SSC_ticks))
+    # ax.spines["left"].set_bounds(min(SSC_ticks), max(SSC_ticks))
+    # ax.set_yticks(SSC_ticks)
+    ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.5), frameon=False)
+    # Wind speed and direction
+    ax = axes[3]
+    ax.scatter(dfwind.index, dfwind["speed"], s=4, c="black",
+               label="Wind speed\n[m/s]")
+    ax.set_ylabel("Wind speed\n[m/s]")
+    ax.set_yticks([0, 7, 14])
+    ax.spines["left"].set_bounds(0, 14)
+    ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.65), frameon=False)
+    ax = ax.twinx()
+    ax.scatter(dfwind.index, dfwind["direction"],
+               marker="x", label="Wind direction\n[degrees]")
+    ax.set_ylabel("Wind direction\n[degrees]")
+    ax.set_yticks([0, 90, 180, 270, 360])
+    ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.35), frameon=False)
+    ax.spines["right"].set_bounds(0, 360)
+    ax.xaxis.set_visible(False)
+    ax.spines["right"].set_position(("outward", 15))
+    ax.spines["top"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+    ax.spines["left"].set_visible(False)
+    # Rainfall
+    ax = axes[2]
+    ax.scatter(dfrain.index, dfrain.amount.replace(0, np.nan), s=4, c="black",
+               label="Rainfall [mm]")
+    ax.set_ylabel("Rainfall\n[mm]")
+    ax.set_yticks([0, 5, 10, 15])
+    ax.spines["left"].set_bounds(0, 15)
+    ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.65), frameon=False)
+    # Pressure
+    ax = ax.twinx()
+    ax.plot(dfpressure.index, dfpressure["Atmospheric pressure"],
+            label="Atmospheric\npressure [mbar]")
+    ax.set_ylabel("Atmospheric\npressure [mbar]")
+    ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.35), frameon=False)
+    ax.set_yticks([1006, 1019, 1032])
+    ax.spines["right"].set_bounds(1006, 1032)
+    ax.xaxis.set_visible(False)
+    ax.spines["right"].set_position(("outward", 15))
+    ax.spines["top"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+    ax.spines["left"].set_visible(False)
+    # Salinity
+    ax = axes[1]
+    ax.plot(df.index, df.salinity_00, c="blue", label="Salinity\nat seabed [PSU]")
+    if dfl is not None:
+        ax.plot(dfl.index, dfl.salinity_00, c="red", label="Salinity\nat surface [PSU]")
+    ax.set_ylabel("Salinity\n[PSU]")
+    ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.5), frameon=False)
+    ax.set_yticks([0, 35])
+    ax.spines["left"].set_bounds(0, 35)
+    # River flow
+    ax = axes[0]
+    for river, dfriver in dfrivers.items():
+        ax.plot(dfriver.index, dfriver["Flow"],
+                label=river)
+    # ax.set_yticks([0, 55, 110])
+    # ax.spines["right"].set_bounds(0, 110)
+    ax.set_ylabel("Water flow [m^3]")
+    ax.legend(loc="center left", bbox_to_anchor=(-0.155, 0.65), frameon=False)
+
+    for i in range(0, 7, 1):
+        axes[i].spines["top"].set_visible(False)
+        if i == 6:
+            axes[i].xaxis.set_visible(True)
+        else:
+            axes[i].xaxis.set_visible(False)
+            axes[i].spines["bottom"].set_visible(False)
+        axes[i].spines["right"].set_visible(False)
+        axes[i].set_xlim(df.index.min() - pd.Timedelta("1h"), df.index.max())
+    axx = plt.gca()
+    axx.xaxis.set_major_locator(mdates.HourLocator(interval=1))
+    axx.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M", tz=df.index.tz))
+    fig.suptitle(title)
+    fig.show()
+    # fig.savefig(dest_file, dpi=300)
+    # plt.close()
+    # gc.collect()
+
+
+def plot_event_ssc_series(devices, title):
+    sns.set(rc={"figure.figsize": (20, 10)})
+    sns.set_style("white")
+    sns.set_style("ticks")
+    v_ssc = VARIABLES["ssc"]
+    colours = {
+        "S1": "red",
+        "S2": "blue",
+        "S3": "green",
+        "S4": "black",
+        "S5": "purple",
+    }
+    fig, ax = plt.subplots()
+    for d in devices:
+        ax.scatter(d.df_avg.index, d.df_avg.ssc, label=d.site,
+                   s=5, alpha=0.8, c=colours[d.site])
+    # ax.set_xlim(
+    #         devices[0].df_avg.index.min() - pd.Timedelta("3h"), devices[0].df_avg.index.max())
+    # ax.xaxis.set_major_locator(mdates.HourLocator(byhour=[0, 6]))
+    # ax.xaxis.set_major_formatter(mdates.DateFormatter("%d-%m %H:%M",
+    #                              tz=devices[0].df_avg.index.tz))
+    ax.set_ylabel("SSC [%s]" % v_ssc["units"])
+    # ax.yaxis.set_label_coords(-0.035, 1.1)
+    ax.legend(title="Sites")
+    fig.suptitle(title)
+    fig.show()
+    gc.collect()
+
+
 def set_font_sizes():
     SMALL_SIZE = 10
     MEDIUM_SIZE = 11
@@ -539,6 +707,8 @@ def plot_ssc_heatmap(devices, start=None, end=None):
     vmin = df_ssc[[d.site for d in devices]].min().min()
     if start is not None and end is not None:
         df_ssc = df_ssc[start:end]
+        vmax = df_ssc[[d.site for d in devices]].max().max()
+        vmin = df_ssc[[d.site for d in devices]].min().min()
         fig, ax = plt.subplots(figsize=(10, 10))
         df_ssc.index = df_ssc.index.strftime('%d-%m %H:%M')
         sns.heatmap(df_ssc.T, vmin=vmin, vmax=vmax, cmap='RdYlBu_r', ax=ax,

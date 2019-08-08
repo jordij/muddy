@@ -268,3 +268,72 @@ def get_weekly_rivers():
         df = df.resample("1h").mean()
         rivers[k] = [group for i, group in df.groupby(df.index.week)]
     return rivers
+
+
+def get_rivers(start=None, end=None):
+    rivers = {}
+    for k, v in RIVERS.items():
+        df = pd.read_csv(
+            v,
+            usecols=["Date", "Time", "Flow"],
+            parse_dates={"date": ["Date", "Time"]},
+            date_parser=lambda d: pd.datetime.strptime(d, '%d/%m/%Y %H:%M:%S'),
+            na_values=["GAP"])
+        df = df.set_index("date")
+        df.index = df.index.tz_localize(TIMEZONE)
+        df = df[(df.index >= DATES["start"]) & (df.index <= DATES["end"])]
+        df = df.resample("1h").mean()
+        if start is not None and end is not None:
+            df = df[(df.index >= start) & (df.index < end)]
+        rivers[k] = df
+    return rivers
+
+
+def get_wind(start=None, end=None):
+    df = pd.read_csv(
+        WIND_EXPERIMENT_DATA_FILE,
+        usecols=["Date(NZST)", "Dir(DegT)", "Speed(m/s)"],
+        index_col=0,
+        parse_dates=["Date(NZST)"],
+        date_parser=lambda d: pd.datetime.strptime(d, '%d/%m/%Y %H:%M'),
+        na_values=["", "-"])
+    df["speed"] = df["Speed(m/s)"]
+    df["direction"] = df["Dir(DegT)"]
+    df.index = df.index.tz_localize(TIMEZONE)
+    if start is not None and end is not None:
+        return df[(df.index >= start) & (df.index < end)]
+    else:
+        return df
+
+
+def get_rainfall(start=None, end=None):
+    df = pd.read_csv(
+        RAINFALL_EXP_DATA_FILE,
+        usecols=["Date(NZST)", "Amount(mm)"],
+        index_col=0,
+        parse_dates=["Date(NZST)"],
+        date_parser=lambda d: pd.datetime.strptime(d, '%d/%m/%Y %H:%M'),
+        na_values=["", "-"])
+    df["amount"] = df["Amount(mm)"]
+    df.index = df.index.tz_localize(TIMEZONE)
+    if start is not None and end is not None:
+        return df[(df.index >= start) & (df.index < end)]
+    else:
+        return df
+
+
+def get_pressure(start=None, end=None):
+    df = pd.read_csv(
+        PRESSURE_DATA_FILE,
+        usecols=["Date(NZST)", "Time(NZST)", "Pmsl(hPa)"],
+        parse_dates={"date": ["Date(NZST)", "Time(NZST)"]},
+        date_parser=lambda d: pd.datetime.strptime(d, '%d/%m/%Y %H:%M'),
+        na_values=["", "-"])
+    df["Atmospheric pressure"] = df["Pmsl(hPa)"]
+    df = df[(df.date >= DATES["start"]) & (df.date <= DATES["end"])]
+    df = df.set_index("date")
+    df.index = df.index.tz_localize(TIMEZONE)
+    if start is not None and end is not None:
+        return df[(df.index >= start) & (df.index < end)]
+    else:
+        return df

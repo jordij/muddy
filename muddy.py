@@ -125,6 +125,35 @@ class Muddy(object):
         else:
             plotter.plot_ssc_heatmap(devs)
 
+    def series_event(self, dtype="bedframe"):
+        start = EVENT_DATES["start"]
+        end = EVENT_DATES["end"]
+        otitle = "Event from %s to %s" % (start, end)
+        dfrain = station.get_rainfall(start=start, end=end)
+        dfrivers = station.get_rivers(start=start, end=end)
+        dfpress = station.get_pressure(start=start, end=end)
+        dfwind = station.get_wind(start=start, end=end)
+        devs = encoder.create_devices_by_type(dtype, "h5")
+        for d in devs:
+            title = "%s - %s" % (otitle, d.site)
+            df = d.df_avg[(d.df_avg.index >= start) & (d.df_avg.index < end)]
+            if d.site != "S3":  # no floater
+                dfl = encoder.create_device(d.site, "floater", "h5").df_avg
+                dfl = dfl[(dfl.index >= start) & (dfl.index < end)]
+            else:
+                dfl = None
+            plotter.plot_event(title, dfrain, dfrivers, dfpress, dfwind, df, dfl)
+
+    def series_ssc_event(self, dtype="bedframe"):
+        # SSC series
+        start = EVENT_DATES["start"]
+        end = EVENT_DATES["end"]
+        title = "%s Event from %s to %s" % (dtype, start, end)
+        devs = encoder.create_devices_by_type(dtype, "h5")
+        for d in devs:
+            d.df_avg = d.df_avg[(d.df_avg.index >= start) & (d.df_avg.index < end)]
+        plotter.plot_event_ssc_series(devs, title)
+
     def stats(self):
         stats.basic_stats().to_csv('./data/stats.csv')
 
