@@ -67,8 +67,6 @@ def plot_rain():
         index_col=0,
         parse_dates=[0],
         na_values=["", "-"])
-    sns.set(rc={"figure.figsize": (12, 6)})
-    sns.set_style("white")
     sns.set_style("ticks")
     fig, ax = plt.subplots()
     ax.bar(
@@ -187,10 +185,8 @@ def barplot_wind(df):
         ax.xaxis.set_major_locator(mdates.DayLocator(interval=5))
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%d-%B"))
         ax.set_xlim(
-            datetime.datetime(year, 5, 1, hour=0,
-                              minute=0),
-            datetime.datetime(year, 6, 30, hour=23,
-                              minute=0))
+            datetime(year, 5, 1, hour=0, minute=0),
+            datetime(year, 6, 30, hour=23, 1minute=0))
         if i < len(axes) - 1:
             ax.xaxis.set_visible(False)
             if i == len(axes)//2:

@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from collections import OrderedDict
 from pandas.plotting import register_matplotlib_converters
 
 from tools import encoder, plot_constants
@@ -16,24 +17,32 @@ register_matplotlib_converters()
 
 def plot_obs_calibration():
     """ Plot OBS calibration for all available devices"""
-    sns.set(rc={"figure.figsize": (9, 8)})
-    sns.set_style("white")
+    sns.set(rc={"figure.figsize": (18, 10)})
     sns.set_style("ticks")
-    for t in INST_TYPES:
+    fig, axes = plt.subplots(ncols=len(INST_TYPES), nrows=1)
+    for i, t in enumerate(INST_TYPES):
         devs = encoder.create_devices_by_type(t, "h5")
-        fig, ax = plt.subplots()
         for d in devs:
-            ax.plot(d.T, d.SSC, label=d.site, marker="o")
-        ax.set(xlabel="Turbidity [NTU]", ylabel="SSC [mg/L]")
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-        fig.legend(title="Sites", loc="center right")
-        dest_file = "%sOBS_calib_%s.png" % (OUTPUT_PATH, t)
-        fig.savefig(dest_file, dpi=200)
-        # free mem
-        fig.clf()
-        plt.close()
-        gc.collect()
+            axes[i].plot(
+                d.T,
+                d.SSC,
+                label=d.site,
+                marker="o",
+                c=plot_constants.colours[d.site])
+        axes[i].set(xlabel="Turbidity [NTU]", ylabel="SSC [mg/L]")
+        axes[i].spines["top"].set_visible(False)
+        axes[i].spines["right"].set_visible(False)
+    handles, labels = fig.gca().get_legend_handles_labels()
+    by_label = OrderedDict(zip(labels, handles))
+    fig.legend(by_label.values(), by_label.keys(),
+               title="Sites", loc="center right")
+    dest_file = "%sOBS_calibration.png" % OUTPUT_PATH
+    fig.show()
+    fig.savefig(dest_file, dpi=200)
+    # free mem
+    fig.clf()
+    plt.close()
+    gc.collect()
 
 
 def plot_all_hourly(dest_file, date, df, vars, minh=0, maxh=24, freqh=1):
@@ -108,7 +117,7 @@ def plot_hourly_ssc_depth_avg(df, date, dest_file, title):
 
 
 def plot_ssc_avg(df, dest_file, title):
-    """ Plot SSC vs  nd Depth """
+    """ Plot SSC vs Salinity and Depth """
     print("Generating %s" % dest_file)
     xvars = ["depth_00", "salinity_00"]
     yvars = ["ssc"]
@@ -611,15 +620,19 @@ def plot_event_ssc_series(devices, title):
     v_ssc = VARIABLES["ssc"]
     colours = {
         "S1": "red",
-        "S2": "blue",
-        "S3": "green",
-        "S4": "black",
+        "S2": "steelblue",
+        "S3": "limegreen",
+        "S4": "orange",
         "S5": "purple",
     }
     fig, ax = plt.subplots()
     for d in devices:
-        ax.scatter(d.df_avg.index, d.df_avg.ssc, label=d.site,
-                   s=5, alpha=0.8, c=colours[d.site])
+        ax.scatter(
+            d.df_avg.index,
+            d.df_avg.ssc,
+            label=d.site,
+            s=10,
+            c=colours[d.site])
     # ax.set_xlim(
     #         devices[0].df_avg.index.min() - pd.Timedelta("3h"), devices[0].df_avg.index.max())
     # ax.xaxis.set_major_locator(mdates.HourLocator(byhour=[0, 6]))
@@ -634,9 +647,9 @@ def plot_event_ssc_series(devices, title):
 
 
 def set_font_sizes():
-    SMALL_SIZE = 10
-    MEDIUM_SIZE = 11
-    BIGGER_SIZE = 14
+    SMALL_SIZE = 28
+    MEDIUM_SIZE = 28
+    BIGGER_SIZE = 28
 
     plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
     plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
@@ -692,6 +705,8 @@ def plot_ssc_heatmap(devices, start=None, end=None):
     sns.set_style("white")
     sns.set_style("ticks")
     v_ssc = VARIABLES["ssc"]
+    values = {"ssc": 2115}
+    devices[0].df_avg = devices[0].df_avg.fillna(value=values)
     # merge SSC from all devices into a single df
     df_merged = devices[0].df_avg
     for i in range(1, len(devices)):
@@ -716,17 +731,29 @@ def plot_ssc_heatmap(devices, start=None, end=None):
                     linewidths=.0)
         ax.tick_params(axis="y", which="major", labelsize=9)
         ax.tick_params(axis="x", which="major", labelsize=9)
+        # POSTER VERSION
+        # df_ssc.index = df_ssc.index.strftime('%H:%M')
+        # sns.heatmap(df_ssc.T, vmin=vmin, vmax=3600, cmap='RdYlBu_r', ax=ax,
+        #             square=False, xticklabels=24, yticklabels=True,
+        #             linewidths=.1, cbar_kws={'label': 'SSC [mg/L]', "ticks": [0, 1200, 2400, 3600]})
+        # ax.tick_params(axis="y", which="both", left=False, right=False)
+        # ax.set_yticklabels(ax.get_yticklabels(), rotation=0)
+        # ax.tick_params(axis="x", which="both", left=False, right=False)
+        # ax.yaxis.set_visible(False)
+        # ax.xaxis.set_visible(False)
+        # ax.spines["bottom"].set_visible(False)
+        # ax.spines["left"].set_visible(False)
     else:
-
         fig, axes = plt.subplots(ncols=1, nrows=4, figsize=(28, 4))
         cbar_ax = fig.add_axes([0.925, .108, .01, .8])
         i = 0
         for date, df in df_ssc.groupby(df_ssc.index.week):
             tzinfo = df.index.tz
             df.index = df.index.strftime('%d-%m %H:%M')
-            sns.heatmap(df.T, vmin=vmin, vmax=1000, cmap='RdYlBu_r', ax=axes[i],
-                        xticklabels=72, yticklabels=True, linewidths=.0,
-                        cbar=(i == 0), cbar_ax=cbar_ax if i == 0 else None)
+            sns.heatmap(df.T, vmin=vmin, vmax=1000, cmap='RdYlBu_r',
+                        ax=axes[i], xticklabels=72, yticklabels=True,
+                        linewidths=.0, cbar=(i == 0),
+                        cbar_ax=cbar_ax if i == 0 else None)
             axes[i].tick_params(axis="y", which="major", labelsize=9)
             axes[i].tick_params(axis="x", which="major", labelsize=9)
             # axes[i].set_xlim(df.index.min(),
@@ -736,5 +763,35 @@ def plot_ssc_heatmap(devices, start=None, end=None):
             #     mdates.DateFormatter("%d-%m %H:%M", tz=tzinfo))
             i += 1
         cbar_ax.set_ylabel("SSC [%s]" % v_ssc["units"])
+
+    # fig.set_size_inches(12, 8) # POSTER
+    fig.tight_layout()
     fig.show()
-    gc.collect()
+    if start is not None and end is not None:
+        i = 0
+        while i < len(devices):
+            fig2, axes2 = plt.subplots(ncols=1, nrows=1)
+            subdf = devices[i].df_avg[start:end]
+            axes2.plot(subdf.index, subdf.depth_00, color="black")
+            # axes2.spines["bottom"].set_visible(False)
+            # axes2.yaxis.set_visible(False)
+            # axes2.xaxis.set_visible(False)
+            axes2.spines["top"].set_visible(False)
+            # axes2.spines["left"].set_visible(False)
+            maxd = int(math.ceil(subdf.depth_00.max()))
+            axes2.set_ylim(bottom=0, top=maxd)
+            # ax.spines["left"].set_position(("outward", -5))
+            # axes2.spines["left"].set_bounds(min(lims), max(lims))
+            axes2.set_yticks([0, maxd])
+            axes2.set_xticks([])
+            axes2.yaxis.tick_right()
+            axes2.xaxis.set_major_locator(
+                    mdates.HourLocator(interval=1))
+            axes2.xaxis.set_major_formatter(
+                mdates.DateFormatter("%H:%M", tz=subdf.index.tz))
+            i += 1
+            fig2.set_size_inches(9, 2.75)
+            fig2.tight_layout()
+            fig2.show()
+            fig2.savefig("./stormwd_%d.png" % i, dpi=600,
+                         bbox_inches='tight', transparent=True)

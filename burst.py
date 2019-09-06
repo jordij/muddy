@@ -1,9 +1,11 @@
 import gsw
 import logging
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import numpy as np
 import peakutils
 import pandas as pd
+import seaborn as sns
 from scipy.constants import pi as PI
 from scipy.constants import g as G
 from scipy import fftpack, signal
@@ -58,7 +60,7 @@ class Burst(object):
         """
         Calculates density from Sal, Temp, Pressure.
 
-        http://www.teos-10.org/pubs/gsw/html/gsw_rho_t_exact.html
+        http://www.teos-10.org/pubs/gsw/html/rho.html
         """
         self.df["density"] = self.df.apply(
             lambda r:  gsw.density.rho(
@@ -69,8 +71,8 @@ class Burst(object):
 
     def _calc_hydrostatic_depth(self):
         """
-        Calculates density from Sal, Temp, Pressure.
-
+        Calculates hydrostatic depth from raw depth
+        Green & Coco (2017)
         Math: h(t) = ((p(t) - pa)/ dens * G) + zp
         Note: pressure in Pascals (1dbar = 10000 P)
         """
@@ -87,6 +89,7 @@ class Burst(object):
         Iteratively calculates lambda from the dispersion relation.
 
         Math: lambda = (G / 2*PI) * T^2 * tanh(2*PI*h/lambda)
+        https://en.wikipedia.org/wiki/Dispersion_(water_waves)
         """
         if self.pp:
             self.logger.info("Mean period in peaks distance (0 - %s) is: %.2f",
@@ -269,39 +272,49 @@ class BurstWelch(Burst):
         """
         Plot signal frequencies resulting from Welch.
         """
-        fig, (ax0, ax1, ax2) = plt.subplots(3, 1, figsize=(12, 6))
+        sns.set_style("ticks")
+        fig, (ax0, ax1, ax2) = plt.subplots(3, 1)
         fig.suptitle(str(self))
         ax0.plot(self.t, self.df.depth_00, color="green", label="Depth")
-        ax0.plot(self.t, self.df.hydro_depth, color="blue", label="Hydrostatic depth")
-        ax0.set_xlabel("Date")
+        ax0.plot(self.t, self.df.hydro_depth,
+                 color="blue", label="Hydrostatic\ndepth")
+        ax0.set_xlabel("Time")
         ax0.set_ylabel("Depth [m]")
-        ax1.plot(self.t, self.df.hydro_depth_dt, color="blue", label="Hydrostatic depth (detrended)")
-        ax1.set_xlabel("Date")
-        ax1.set_ylabel("Depth [m]")
+        # ax0.title.set_text('                                                                                                                                                                       A)')
+        ax0.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M",
+                                      tz=self.df.index.tz))
+        ax1.plot(self.t, self.df.hydro_depth_dt, color="blue")
+        ax1.set_xlabel("Time")
+        ax1.set_ylabel("Hydrostatic depth [m]")
+        # ax1.title.set_text('                                                                                                                                                                       B)')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M",
+                                      tz=self.df.index.tz))
         # plot the peak frequency
-        ax2.plot(self.freqs, self.pwr[:len(self.freqs)], label="Welch", color="blue")
+        ax2.plot(self.freqs, self.pwr[:len(self.freqs)], color="blue")
         ax2.set_xlabel("Frequency [Hz]")
-        ax2.set_ylabel("Power Spectral Density [m^2/Hz]")
-        self.logger.info("Peak frequency is: %.2f", round(self.pf, 2))
-        self.logger.info("Power [] at peak frequency is: %.2f",
-                         round(self.ppwr, 2))
-        ax2.plot(
-            self.freqs,
-            signal.savgol_filter(
-                self.pwr,
-                window_length=25,
-                polyorder=10,
-                mode="interp")[:len(self.freqs)],
-            label="Savitzky-Golay",
-            color="green")
-        ax2.plot(
-            self.freqs,
-            signal.wiener(self.pwr, mysize=25)[:len(self.freqs)],
-            label="Wiener",
-            color="red")
-        ax0.legend()
-        ax1.legend()
-        ax2.legend()
+        ax2.set_ylabel("PSD [m^2/Hz]")
+        # ax2.title.set_text('                                                                                                                                                                       C)')
+        # self.logger.info("Peak frequency is: %.2f", round(self.pf, 2))
+        # self.logger.info("Power [] at peak frequency is: %.2f",
+        #                  round(self.ppwr, 2))
+        # ax2.plot(
+        #     self.freqs,
+        #     signal.savgol_filter(
+        #         self.pwr,
+        #         window_length=25,
+        #         polyorder=10,
+        #         mode="interp")[:len(self.freqs)],
+        #     label="Savitzky-Golay",
+        #     color="green")
+        # ax2.plot(
+        #     self.freqs,
+        #     signal.wiener(self.pwr, mysize=25)[:len(self.freqs)],
+        #     label="Wiener",
+        #     color="red")
+        ax0.legend(loc="center right", bbox_to_anchor=(1.165, 0.5), ncol=1)
+        fig.show()
+        # ax1.legend()
+        # ax2.legend()
 
 
 class BurstPeaks(Burst):

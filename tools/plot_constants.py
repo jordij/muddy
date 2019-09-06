@@ -1,4 +1,12 @@
 
+colours = {
+    "S1": "red",
+    "S2": "blue",
+    "S3": "green",
+    "S4": "black",
+    "S5": "purple",
+}
+
 # Weekly custom limits for the 4 weeks of data
 # Edit at according to your data. Could do it programmatically
 # but not worth it at this point IMHO

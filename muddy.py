@@ -142,7 +142,8 @@ class Muddy(object):
                 dfl = dfl[(dfl.index >= start) & (dfl.index < end)]
             else:
                 dfl = None
-            plotter.plot_event(title, dfrain, dfrivers, dfpress, dfwind, df, dfl)
+            plotter.plot_event(title, dfrain, dfrivers,
+                               dfpress, dfwind, df, dfl)
 
     def series_ssc_event(self, dtype="bedframe"):
         # SSC series
@@ -151,7 +152,9 @@ class Muddy(object):
         title = "%s Event from %s to %s" % (dtype, start, end)
         devs = encoder.create_devices_by_type(dtype, "h5")
         for d in devs:
-            d.df_avg = d.df_avg[(d.df_avg.index >= start) & (d.df_avg.index < end)]
+            d.df_avg = d.df_avg[
+                (d.df_avg.index >= start) & (d.df_avg.index < end)
+            ]
         plotter.plot_event_ssc_series(devs, title)
 
     def stats(self):

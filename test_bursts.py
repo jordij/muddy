@@ -5,20 +5,20 @@ from tools import encoder
 # Episode for Site 1 - 6th June
 ################################
 
-# dates = [
+dates = [
 #     "2017-06-05 13:50:00",
-#     "2017-06-05 14:00:00",
-#     "2017-06-05 14:10:00",
+     "2017-05-18 14:00:00",
+     "2017-05-18 14:10:00",
 #     "2017-06-05 14:20:00"
-# ]
+ ]
 
-# device = encoder.create_device("S1", "bedframe", "h5")
-# for i, d in enumerate(dates):
-#     if i < len(dates) - 1:
-#         burst = device.get_burst(start=d, end=dates[i + 1], method="welch")
-#         burst.plot_freqs()
-#         print(str(burst))
-#         print("U [cm/s], T [s], H [m] : %s" % str(burst.get_UTH()))
+device = encoder.create_device("S5", "bedframe", "h5")
+for i, d in enumerate(dates):
+    if i < len(dates) - 1:
+        burst = device.get_burst(start=d, end=dates[i + 1], method="welch")
+        burst.plot_freqs()
+        print(str(burst))
+        print("U [cm/s], T [s], H [m] : %s" % str(burst.get_UTH()))
 
 ################################
 # Episode for Site 1 - 17th May
@@ -41,20 +41,20 @@ from tools import encoder
 # Episode for Site 2 - 13th May
 ################################
 
-device = encoder.create_device("S2", "bedframe", "h5")
-
-dates = [
-    "2017-05-13 06:00:00",
-    "2017-05-13 06:10:00",
-    "2017-05-13 06:20:00",
-    "2017-05-13 06:30:00"
-]
-for i, d in enumerate(dates):
-    if i < len(dates) - 1:
-        burst = device.get_burst(start=d, end=dates[i + 1], method="fourier")
-        burst.plot_freqs()
-        print(str(burst))
-        print("U: %.2f [cm/s], T: %.2f [s], H: %.2f [m]" % burst.get_UTH())
+#device = encoder.create_device("S2", "bedframe", "h5")
+#
+#dates = [
+#    "2017-05-13 06:00:00",
+#    "2017-05-13 06:10:00",
+#    "2017-05-13 06:20:00",
+#    "2017-05-13 06:30:00"
+#]
+#for i, d in enumerate(dates):
+#    if i < len(dates) - 1:
+#        burst = device.get_burst(start=d, end=dates[i + 1], method="fourier")
+#        burst.plot_freqs()
+#        print(str(burst))
+#        print("U: %.2f [cm/s], T: %.2f [s], H: %.2f [m]" % burst.get_UTH())
 
 
 # device = encoder.create_device("S1", "bedframe", "h5")
