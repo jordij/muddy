@@ -186,7 +186,7 @@ def barplot_wind(df):
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%d-%B"))
         ax.set_xlim(
             datetime(year, 5, 1, hour=0, minute=0),
-            datetime(year, 6, 30, hour=23, 1minute=0))
+            datetime(year, 6, 30, hour=23, minute=0))
         if i < len(axes) - 1:
             ax.xaxis.set_visible(False)
             if i == len(axes)//2:

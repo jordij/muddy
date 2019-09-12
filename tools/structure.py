@@ -23,6 +23,11 @@ def create_structure():
                 os.makedirs(conc_folder)
             else:
                 print("%s %s already exists" % (site, inst))
+            conc_folder = os.path.join(OUTPUT_PATH, site, "adcp")
+            if not os.path.exists(conc_folder):
+                os.makedirs(conc_folder)
+            else:
+                print("%s %s already exists" % (site, "adcp"))
             conc_folder = os.path.join(OUTPUT_PATH, site, inst, AVG_FOLDER)
             if not os.path.exists(conc_folder):
                 os.makedirs(conc_folder)

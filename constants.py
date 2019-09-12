@@ -498,3 +498,10 @@ AQUADOPPS_HEIGHTS = [
     4.10,
     4.20
 ]
+
+AQUADOPPS_SENS = ["A243401", "EXTIKI02", "HR02"]
+AQUADOPPS_LEVELS = [
+    [0.3, 0.5, 0.7],  # site 1
+    [0.3, 0.6, 1.1],  # site 2
+    [0.3, 1.2, 2.5]  # site 3
+]
