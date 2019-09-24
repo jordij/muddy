@@ -10,6 +10,7 @@ data/rsk/
 data/stats.csv
 data/NIWA/
 data/WRC/
+data/Currents/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
