@@ -35,7 +35,7 @@ ADCP_A1_LEVELS = [  # anything with a1 lower than these values is removed
 
 class ADCP(object):
     VARS = []
-    WD = []
+    WD = "WaterDepth"
     AMPLITUDES = []
     HEIGHTS = []
 
@@ -95,7 +95,6 @@ class RDI(ADCP):
         'SerPG1', 'SerPG2', 'SerPG3', 'SerPG4',
         'Vel_E_TN', 'Vel_N_TN', 'Vel_Mag', 'Vel_Dir_TN', 'Vel_Up'
     ]
-    WD = "WaterDepth"
     AMPLITUDES = ['SerEA1cnt', 'SerEA2cnt', 'SerEA3cnt', 'SerEA4cnt']
     HEIGHTS = np.arange(1.27, 10.27, 0.25, dtype=np.float32)
 
@@ -230,7 +229,7 @@ class RDI(ADCP):
         return "RDI %s" % self.site
 
 
-class Signature1000(object):
+class Signature1000(ADCP):
     """
     Represents an Signature1000 ADCP and its associated data
     """
@@ -366,47 +365,6 @@ class Signature1000(object):
 
     def __str__(self):
         return "Signature1000 %s" % self.site
-
-    def unicode(self):
-        return self.__str__()
-
-    def plot_amplitude(self):
-        for a in self.AMPLITUDES:
-            fig, axes = plt.subplots(ncols=1, nrows=4, figsize=(28, 4))
-            cbar_ax = fig.add_axes([0.935, .108, .01, .75])
-            cbar_ax.set_ylabel("Amplitude [counts]")
-            i = 0
-            weeks = self.df.index.get_level_values('Date').week
-            for week, df in self.df.groupby(weeks):
-                ax = axes[i]
-                ax1 = ax.twinx()
-                # Amplitude
-                dfamp = df.reset_index().pivot(columns='Height', index='Date',
-                                               values=a)
-                # uncomment to show nans as 0
-                # .fillna(0)
-                sns.heatmap(
-                    dfamp.transpose(), cmap='RdYlBu_r', vmin=0,
-                    ax=ax, xticklabels=False, yticklabels=37,
-                    linewidths=.0,
-                    cbar=(i == 0),
-                    cbar_ax=cbar_ax if i == 0 else None)
-                ax.invert_yaxis()  # distance from bottom to top
-                ax.set_ylabel("Distance above\nhead [m]")
-                ax.set_ylim(bottom=0)
-                ax.set_xlabel(None)
-                # Water depth
-                wd_df = self.wd[self.wd.index.week == week]
-                wd_df.index = wd_df.index.strftime("%d-%m %H:%M")
-                ax1.plot(wd_df.index, wd_df["WaterDepth"],
-                         color="black", label="Water Depth [m]")
-                ax1.set_ylabel("Water depth [m]")
-                ax1.set_ylim(bottom=0, top=self.wd["WaterDepth"].max())
-                ax1.xaxis.set_ticks(
-                    np.arange(72, wd_df.WaterDepth.count() + 1, 72))
-                ax1.set_xlabel(None)
-                i += 1
-            fig.suptitle("%s - %s" % (str(self), a))
 
     def plot_magnitude(self):
         dfwindlist = station.get_weekly_wind()
