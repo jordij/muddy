@@ -1,11 +1,13 @@
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import numpy as np
 import os
 import pandas as pd
 import scipy.io as sio
 import seaborn as sns
 import itertools
-from constants import TIMEZONE, ADCP_DATES
+from constants import TIMEZONE, ADCP_DATES, DATES_FORMAT
+from datetime import datetime
 from pandas.plotting import register_matplotlib_converters
 from tools import station
 
@@ -32,6 +34,27 @@ ADCP_A1_LEVELS = [  # anything with a1 lower than these values is removed
     55
 ]
 
+CALM_TIDES = {
+    "peak": [
+        {"start": "2017-06-11 08:30:00+12:00", "bursts": 2},
+        "",
+        "",
+        "",
+        ""],
+    "flood": [
+        {"start": "2017-06-11 07:00:00+12:00", "bursts": 6},
+        "",
+        "",
+        "",
+        ""],
+    "ebb": [
+        {"start": "2017-06-11 09:00:00+12:00", "bursts": 6},
+        "",
+        "",
+        "",
+        ""]
+}
+
 
 class ADCP(object):
     VARS = []
@@ -40,7 +63,8 @@ class ADCP(object):
     HEIGHTS = []
 
     def __str__(self):
-        return "RDI %s" % self.site
+        """ Method to be implemented in each subclass """
+        raise NotImplementedError("Must load data into dataframe")
 
     def unicode(self):
         return self.__str__()
@@ -48,6 +72,31 @@ class ADCP(object):
     def __init__(self, site):
         """ Method to be implemented in each subclass """
         raise NotImplementedError("Must load data into dataframe")
+
+    def plot_interval(self, start="2017-06-11 08:00:00+12:00", bursts=6):
+        # S1 mid ebb tide = 08:00
+        start_date = datetime.strptime(start, DATES_FORMAT + "%z")
+        end_date = start_date + pd.Timedelta("%ss" % (INTERVAL * bursts))
+        df_plot = self.df.loc[start_date:end_date]
+        df_plot = df_plot.reset_index()
+        df_plot = df_plot.set_index('Date')
+        df_plot = df_plot[['Vel_Mag', 'Height']]
+
+        fig, ax = plt.subplots()
+        for i in range(0, bursts):
+            df = df_plot[start_date:start_date]
+            ax.plot(
+                df.Vel_Mag,
+                df.Height,
+                '-o',
+                label=start_date.strftime("%Hh:%Mm"))
+            start_date = start_date + pd.Timedelta("%ss" % (INTERVAL))
+        ax.set_xlabel("Velocity\nspeed [m/s]")
+        ax.set_ylabel("Height above\nhead [m]")
+        ax.set_xlim(0, df_plot.Vel_Mag.max() + 0.05)
+        ax.legend()
+        fig.suptitle("Velocity profile - %s from %s to %s" %
+                     (str(self), start, end_date))
 
     def plot_amplitude(self):
         for a in self.AMPLITUDES:
@@ -62,8 +111,6 @@ class ADCP(object):
                 # Amplitude
                 dfamp = df.reset_index().pivot(columns='Height', index='Date',
                                                values=a)
-                # uncomment to show nans as 0
-                # .fillna(0)
                 sns.heatmap(
                     dfamp.transpose(), cmap='RdYlBu_r', vmin=0,
                     ax=ax, xticklabels=False, yticklabels=len(self.HEIGHTS)-1,
@@ -80,7 +127,7 @@ class ADCP(object):
                 ax1.plot(wd_df.index, wd_df[self.WD],
                          color="black", label="Water Depth [m]")
                 ax1.set_ylabel("Water depth [m]")
-                ax1.set_ylim(bottom=0, top=self.wd[self.WD].max())
+                ax1.set_ylim(bottom=0, top=self.HEIGHTS[-1])
                 ax1.xaxis.set_ticks(
                     np.arange(72, wd_df.WaterDepth.count() + 1, 72))
                 ax1.set_xlabel(None)
@@ -311,21 +358,22 @@ class Signature1000(ADCP):
             vars_nan = self.VARS[-(len(self.VARS)-1):] + self.AMPLITUDES
             self.df.loc[self.df.a1 < ADCP_A1_LEVELS[self.site - 1],
                         vars_nan] = np.NaN
-            # self.df["OutOfWater"] = self.df.apply(
-            #     lambda r: r.IBurst_Correlation_Beam < 70,
-            #     axis=1)
-            # self.df.loc[self.df.OutOfWater, vars_nan] = np.NaN
-            # self.df["minHeight"] = self.df.apply(
-            #     lambda r: self.df.loc[
-            #         r.name[0], ].query("OutOfWater == True").index.min(),
-            #     axis=1)
-            # too expensive, not good to iterate on DF and perform updates..
-            # for i in self.df.index.get_level_values(0):
-            #     for j in self.df.loc[i].index.get_level_values(0):
-            #         if self.df.loc[i, j].OutOfWater:
-            #             lower_idx = list(filter(lambda x: x > j,
-            #                              self.HEIGHTS))
-            #             self.df.loc[(i, lower_idx), vars_nan] = np.NaN
+        self.clean_by_hah()
+        # self.df["OutOfWater"] = self.df.apply(
+        #     lambda r: r.IBurst_Correlation_Beam < 70,
+        #     axis=1)
+        # self.df.loc[self.df.OutOfWater, vars_nan] = np.NaN
+        # self.df["minHeight"] = self.df.apply(
+        #     lambda r: self.df.loc[
+        #         r.name[0], ].query("OutOfWater == True").index.min(),
+        #     axis=1)
+        # too expensive, not good to iterate on DF and perform updates..
+        # for i in self.df.index.get_level_values(0):
+        #     for j in self.df.loc[i].index.get_level_values(0):
+        #         if self.df.loc[i, j].OutOfWater:
+        #             lower_idx = list(filter(lambda x: x > j,
+        #                              self.HEIGHTS))
+        #             self.df.loc[(i, lower_idx), vars_nan] = np.NaN
 
     def clean_by_hah(self, threshold=1, min_hah=0.8):
         # agressive cleanup
@@ -438,14 +486,14 @@ class Signature1000(ADCP):
             i += 1
 
 
-class Aquadopp(object):
+class Aquadopp(ADCP):
     """
     Represents an Aquadopp ADCP
     """
     VARS = ["a1", "a2", "a3",  # amplitudes
             "Vel_Mag", "Vel_Dir_TN",  # velocity mag. and dir
             "Vel_E_TN", "Vel_N_TN", "Vel_Up"]  # velocity components
-    HEIGHTS = np.arange(0.3, 4.3, 0.1, dtype=np.float32)
+    HEIGHTS = np.linspace(0.3, 4.3, 40).round(1)
     SEN_HEADERS = [
         "Month",
         "Day",
@@ -503,7 +551,7 @@ class Aquadopp(object):
         self.df = df.join(self.wd, how="left")
         # clean data based on amplitude threshold
         if ADCP_A1_LEVELS[self.site - 1] is not None:
-            self.df.loc[self.df.a1 < ADCP_A1_LEVELSS[self.site - 1],
+            self.df.loc[self.df.a1 < ADCP_A1_LEVELS[self.site - 1],
                         self.VARS] = np.NaN
         if self.site == 3:  # clean based on hah
             self.df["OutOfWater"] = self.df.apply(
@@ -522,11 +570,37 @@ class Aquadopp(object):
         self.df_sen = self.df_sen[ADCP_DATES["start"]:ADCP_DATES["end"]]
         self.df_sen.index = self.df_sen.index.tz_localize(TIMEZONE)
 
+    # def plot_interval(self, start="2017-05-18 00:00:00", end="2017-05-17 01:00:00"):
+    #     df_plot = self.df.loc[start:end]
+    #     df_plot = df_plot.reset_index()
+    #     df_plot = df_plot.set_index('Date')
+    #     df_plot = df_plot[['Vel_Mag', 'Height']]
+
+    #     fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(28, 4))
+    #     # sns.scatterplot(
+    #     #     'Date',
+    #     #     'Vel_Mag',
+    #     #     data=df_plot,
+    #     #     alpha=1,
+    #     #     hue="Height",
+    #     #     ax=ax)
+    #     # ax.plot(df_plot)
+
+    #     ax.scatter(
+    #         df_plot.Vel_Mag,
+    #         df_plot.Height,
+    #         s=10,
+    #         c=df_plot.index,
+    #         cmap='jet')
+    #     ax.set_ylabel("Velocity\nspeed [m/s]")
+    #     ax.set_xlim(0, 0.5)
+    #     # ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=10))
+    #     # ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M",
+    #     #                              tz=df_plot.index.tz))
+    #     ax.legend()
+
     def __str__(self):
         return "Aquadopp %s" % self.site
-
-    def unicode(self):
-        return self.__str__()
 
     def plot_amplitude(self):
         for a in self.VARS[:3]:
@@ -559,7 +633,7 @@ class Aquadopp(object):
                 ax1.plot(wd_df.index, wd_df["WaterDepth"],
                          color="black", label="Water Depth [m]")
                 ax1.set_ylabel("Water depth [m]")
-                ax1.set_ylim(bottom=0, top=self.wd["WaterDepth"].max())
+                ax1.set_ylim(bottom=0, top=self.HEIGHTS[-1])
                 ax1.xaxis.set_ticks(
                     np.arange(72, wd_df.WaterDepth.count() + 1, 72))
                 ax1.set_xlabel(None)
@@ -597,7 +671,7 @@ class Aquadopp(object):
                 ax1.plot(wd_df.index, wd_df["WaterDepth"],
                          color="black", label="Water Depth [m]")
                 ax1.set_ylabel("Water depth [m]")
-                ax1.set_ylim(bottom=0, top=self.wd["WaterDepth"].max())
+                ax1.set_ylim(bottom=0, top=self.HEIGHTS[-1])
                 ax1.xaxis.set_ticks(
                     np.arange(72, wd_df.WaterDepth.count() + 1, 72))
                 ax1.set_xlabel(None)
