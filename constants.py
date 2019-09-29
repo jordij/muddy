@@ -314,7 +314,7 @@ DEVICES = [
     },
     {
         "site": "S3",
-        "file": "065819_20170701_0953",
+        "file": "065821_20170703_1419",
         "type": "bedframe",
         "freq": 6,  # Hz
         "burst_samples": 2048,  # per burst
@@ -361,7 +361,7 @@ DEVICES = [
     },
     {
         "site": "S4",
-        "file": "065821_20170703_1419",
+        "file": "065819_20170701_0953",
         "type": "bedframe",
         "freq": 6,  # Hz
         "burst_samples": 2048,  # per burst

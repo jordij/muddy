@@ -1,7 +1,7 @@
 import fire
 import logging
 
-from constants import SITES, INST_TYPES, EVENT_DATES
+from constants import SITES, INST_TYPES, EVENT_DATES, POSTER_DATES
 from tools import plotter, encoder, structure, stats, station
 import maps
 
@@ -115,8 +115,6 @@ class Muddy(object):
         if dtype not in INST_TYPES:
             raise ValueError("Type floater or bedframe expected.")
         devs = encoder.create_devices_by_type(dtype, "h5")
-        if dtype == "bedframe":  # swap 3 and 4
-            devs[2], devs[3] = devs[3], devs[2]
         if event:
             plotter.plot_ssc_heatmap(
                 devs,

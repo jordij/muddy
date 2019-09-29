@@ -106,7 +106,8 @@ class Wave(object):
             ax.set_ylabel("Wave height [m]")
             fig.legend()
 
-    def plot_interval(self, start=EVENT_DATES["start"], end=EVENT_DATES["end"]):
+    def plot_interval(self, start=EVENT_DATES["start"],
+                      end=EVENT_DATES["end"]):
         """
         Plot interval defined by start/end dates
         """
@@ -114,7 +115,7 @@ class Wave(object):
         df = self.df[start:end]
 
         fig, axes = plt.subplots(ncols=1, nrows=3,
-                                     figsize=(28, 4))
+                                 figsize=(28, 4))
         # water depth
         ax = axes[0]
         ax.plot(df.index, df["WaterDepth"], linestyle=":",
@@ -128,9 +129,9 @@ class Wave(object):
         # wave period
         ax = axes[1]
         ax.plot(df.index, df["Tp"],
-                   color="green", label="RDI wave period")
+                color="green", label="RDI wave period")
         ax.plot(cdf.index, cdf["T"],
-                   color="blue", label="Concerto wave period")
+                color="blue", label="Concerto wave period")
         ax.set_ylabel("Wave period [s]")
         # wave height
         ax = axes[2]

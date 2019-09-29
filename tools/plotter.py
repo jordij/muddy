@@ -725,24 +725,25 @@ def plot_ssc_heatmap(devices, start=None, end=None):
         vmax = df_ssc[[d.site for d in devices]].max().max()
         vmin = df_ssc[[d.site for d in devices]].min().min()
         fig, ax = plt.subplots(figsize=(10, 10))
-        df_ssc.index = df_ssc.index.strftime('%d-%m %H:%M')
-        sns.heatmap(df_ssc.T, vmin=vmin, vmax=vmax, cmap='RdYlBu_r', ax=ax,
-                    square=False, xticklabels=36, yticklabels=True,
-                    linewidths=.0)
-        ax.tick_params(axis="y", which="major", labelsize=9)
-        ax.tick_params(axis="x", which="major", labelsize=9)
+        # NORMAL VERSION
+        # df_ssc.index = df_ssc.index.strftime('%d-%m %H:%M')
+        # sns.heatmap(df_ssc.T, vmin=vmin, vmax=vmax, cmap='RdYlBu_r', ax=ax,
+        #             square=False, xticklabels=36, yticklabels=True,
+        #             linewidths=.0)
+        # ax.tick_params(axis="y", which="major", labelsize=9)
+        # ax.tick_params(axis="x", which="major", labelsize=9)
         # POSTER VERSION
-        # df_ssc.index = df_ssc.index.strftime('%H:%M')
-        # sns.heatmap(df_ssc.T, vmin=vmin, vmax=3600, cmap='RdYlBu_r', ax=ax,
-        #             square=False, xticklabels=24, yticklabels=True,
-        #             linewidths=.1, cbar_kws={'label': 'SSC [mg/L]', "ticks": [0, 1200, 2400, 3600]})
-        # ax.tick_params(axis="y", which="both", left=False, right=False)
-        # ax.set_yticklabels(ax.get_yticklabels(), rotation=0)
-        # ax.tick_params(axis="x", which="both", left=False, right=False)
-        # ax.yaxis.set_visible(False)
-        # ax.xaxis.set_visible(False)
-        # ax.spines["bottom"].set_visible(False)
-        # ax.spines["left"].set_visible(False)
+        df_ssc.index = df_ssc.index.strftime('%H:%M')
+        sns.heatmap(df_ssc.T, vmin=vmin, vmax=3600, cmap='RdYlBu_r', ax=ax,
+                    square=False, xticklabels=24, yticklabels=True,
+                    linewidths=.1, cbar_kws={'label': 'SSC [mg/L]', "ticks": [0, 1200, 2400, 3600]})
+        ax.tick_params(axis="y", which="both", left=False, right=False)
+        ax.set_yticklabels(ax.get_yticklabels(), rotation=0)
+        ax.tick_params(axis="x", which="both", left=False, right=False)
+        ax.yaxis.set_visible(False)
+        ax.xaxis.set_visible(False)
+        ax.spines["bottom"].set_visible(False)
+        ax.spines["left"].set_visible(False)
     else:
         fig, axes = plt.subplots(ncols=1, nrows=4, figsize=(28, 4))
         cbar_ax = fig.add_axes([0.925, .108, .01, .8])
