@@ -64,8 +64,9 @@ class Wave(object):
         df_vars["Time"] = timestamps
         df = pd.DataFrame.from_dict(df_vars)
         df = df.set_index("Time")
+        df.index = df.index.tz_localize("UTC")
+        df.index = df.index.tz_convert(TIMEZONE)
         df = df[ADCP_DATES["start"]:ADCP_DATES["end"]]
-        df.index = df.index.tz_localize(TIMEZONE)
         self.df = df.replace(-1, np.NaN)
         self.concerto = encoder.create_device(
             "S%d" % self.site,
@@ -89,20 +90,20 @@ class Wave(object):
             ax.set_ylim(bottom=0, top=max(
                 df["WaterDepth"].max(),
                 cdf["depth_00"].max()))
-            # wave period
+            # peak period
             ax = axes[1]
             ax.plot(df.index, df["Tp"],
-                    color="green", label="RDI wave period")
+                    color="green", label="RDI peak period")
             ax.plot(cdf.index, cdf["T"],
-                    color="blue", label="Concerto wave period")
-            ax.set_ylabel("Wave period [s]")
-            # wave height
+                    color="blue", label="Concerto peak period")
+            ax.set_ylabel("peak period [s]")
+            # sig. wave height
             ax = axes[2]
             ax.plot(df.index, df["Hs"],
-                    color="green", label="RDI wave height")
+                    color="green", label="RDI sig. wave height")
             ax.plot(cdf.index, cdf["H"],
-                    color="blue", label="Concerto wave height")
-            ax.set_ylabel("Wave height [m]")
+                    color="blue", label="Concerto sig. wave height")
+            ax.set_ylabel("sig. wave height [m]")
             fig.legend()
 
     def plot_interval(self, start=EVENT_DATES["start"],
@@ -125,18 +126,18 @@ class Wave(object):
         ax.set_ylim(bottom=0, top=max(
             df["WaterDepth"].max(),
             cdf["depth_00"].max()))
-        # wave period
+        # peak period
         ax = axes[1]
         ax.plot(df.index, df["Tp"], "-o",
-                color="green", label="RDI wave period")
+                color="green", label="RDI peak period")
         ax.plot(cdf.index, cdf["T"], "-o",
-                color="blue", label="Concerto wave period")
-        ax.set_ylabel("Wave period [s]")
-        # wave height
+                color="blue", label="Concerto peak period")
+        ax.set_ylabel("peak period [s]")
+        # sig. wave height
         ax = axes[2]
         ax.plot(df.index, df["Hs"], "-o",
-                color="green", label="RDI wave height")
+                color="green", label="RDI sig. wave height")
         ax.plot(cdf.index, cdf["H"], "-o",
-                color="blue", label="Concerto wave height")
-        ax.set_ylabel("Wave height [m]")
+                color="blue", label="Concerto sig. wave height")
+        ax.set_ylabel("sig. wave height [m]")
         fig.legend()

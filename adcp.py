@@ -6,7 +6,8 @@ import pandas as pd
 import scipy.io as sio
 import seaborn as sns
 import itertools
-from constants import TIMEZONE, ADCP_DATES, DATES_FORMAT
+from constants import (TIMEZONE, ADCP_DATES, DATES_FORMAT,
+                       CALM_TIDES, STORM_TIDES)
 from datetime import datetime
 from pandas.plotting import register_matplotlib_converters
 from tools import station
@@ -24,7 +25,7 @@ ADCP_LEVELS = [  # levels per site
     [0.3, 0.5, 0.7],
     [0.3, 0.6, 1.1],
     [0.3, 1, 2],
-    [np.float32(0.6), np.float32(1.4), np.float32(2.6)],
+    [0.6, 1.4, 2.7],
     [1.27, 3.02, 4.52],
 ]
 ADCP_A1_LEVELS = [  # anything with a1 lower than these values is removed
@@ -33,27 +34,6 @@ ADCP_A1_LEVELS = [  # anything with a1 lower than these values is removed
     60,
     55
 ]
-
-CALM_TIDES = {
-    "peak": [
-        {"start": "2017-06-11 08:30:00+12:00", "bursts": 2},
-        "",
-        "",
-        "",
-        ""],
-    "flood": [
-        {"start": "2017-06-11 07:00:00+12:00", "bursts": 6},
-        "",
-        "",
-        "",
-        ""],
-    "ebb": [
-        {"start": "2017-06-11 09:00:00+12:00", "bursts": 6},
-        "",
-        "",
-        "",
-        ""]
-}
 
 
 class ADCP(object):
@@ -143,7 +123,11 @@ class RDI(ADCP):
         'Vel_E_TN', 'Vel_N_TN', 'Vel_Mag', 'Vel_Dir_TN', 'Vel_Up'
     ]
     AMPLITUDES = ['SerEA1cnt', 'SerEA2cnt', 'SerEA3cnt', 'SerEA4cnt']
-    HEIGHTS = np.arange(1.27, 10.27, 0.25, dtype=np.float32)
+    HEIGHTS = [
+        1.27,  1.52,  1.77,  2.02,  2.27,  2.52,  2.77,  3.02,  3.27,
+        3.52,  3.77,  4.02,  4.27,  4.52,  4.77,  5.02,  5.27,  5.52,
+        5.77,  6.02,  6.27,  6.52,  6.77,  7.02,  7.27,  7.52,  7.77,
+        8.02,  8.27,  8.52,  8.77,  9.02,  9.27,  9.52,  9.77, 10.02]
 
     def __init__(self, site):
         """
@@ -305,7 +289,7 @@ class Signature1000(ADCP):
     ]
 
     AMPLITUDES = ['a1', 'a2', 'a3', 'a4']
-    HEIGHTS = np.arange(0.6, 8.2, 0.2, dtype=np.float32)
+    HEIGHTS = np.linspace(0.6, 8.2, 38).round(1)
 
     def __init__(self, site):
         folder = "Site{0}/FoT_Signature1000_S{0}_BurstStats_noQC.mat".format(
@@ -323,7 +307,10 @@ class Signature1000(ADCP):
         timestamps[0] = timestamps[0] - pd.Timedelta(
             nanoseconds=timestamps[0].nanosecond)
         for i in range(1, len(ml_data["Time"][0][0])):
-            timestamps.append(timestamps[i-1] + pd.Timedelta("%ss" % INTERVAL))
+            t = pd.to_datetime(ml_data["Time"][0][0][i][0]-719529, unit='D')
+            t = t - pd.Timedelta(microseconds=t.microsecond)
+            t = t - pd.Timedelta(nanoseconds=t.nanosecond)
+            timestamps.append(t)
         # Populate vars
         df_vars = {}
         for v in self.VARS:
@@ -351,7 +338,9 @@ class Signature1000(ADCP):
         df[self.AMPLITUDES] = pd.DataFrame(
             df.Burst_Amplitude_Beam.values.tolist(), index=df.index)
         df = df.drop(columns="Burst_Amplitude_Beam")
-        df = df.loc[ADCP_DATES["start"]:ADCP_DATES["end"]]
+        df = df[(df.index.get_level_values(0) >= ADCP_DATES["start"]) &
+                (df.index.get_level_values(0) < ADCP_DATES["end"])]
+        # df = df.loc[ADCP_DATES["start"]:ADCP_DATES["end"]]
         self.df = df.join(self.wd, how="left")
         # clean data
         if ADCP_A1_LEVELS[self.site - 1] is not None:
