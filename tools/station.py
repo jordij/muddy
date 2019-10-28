@@ -7,6 +7,7 @@ import numpy as np
 import seaborn as sns
 from constants import TIMEZONE, DATES, DATES_FORMAT
 from datetime import datetime
+from tools import plotter
 from matplotlib.ticker import MultipleLocator
 from windrose import plot_windrose
 
@@ -24,9 +25,10 @@ RIVERS = {
 
 
 def plot_river_flows():
-    sns.set(rc={"figure.figsize": (12, 6)})
-    sns.set_style("white")
+    # sns.set(rc={"figure.figsize": (12, 6)})
+    # sns.set_style("white")
     sns.set_style("ticks")
+    plotter.set_font_sizes()
     fig, ax = plt.subplots()
     for k, v in RIVERS.items():
         df = pd.read_csv(

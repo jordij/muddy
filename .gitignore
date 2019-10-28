@@ -11,6 +11,7 @@ data/stats.csv
 data/NIWA/
 data/WRC/
 data/Currents/
+data/fluxes/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

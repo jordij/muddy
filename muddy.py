@@ -1,7 +1,7 @@
 import fire
 import logging
 
-from constants import SITES, INST_TYPES, EVENT_DATES, POSTER_DATES
+from constants import SITES, INST_TYPES, EVENT_DATES, POSTER_DATES, CALM_EVENT_DATES
 from tools import plotter, encoder, structure, stats, station
 import maps
 
@@ -31,6 +31,7 @@ class Muddy(object):
         else:
             for t in INST_TYPES:  # all instruments
                 for d in encoder.create_devices_by_type(t, origin):
+                    d.save_H5(avg=True)
                     d.plot_days()
 
     def avg_plots(self, site="all", dtype="floater"):
@@ -105,6 +106,11 @@ class Muddy(object):
                 else:
                     dbf.plot_ssc_u_h_weekly()
 
+    def salinity_plots(self):
+        bfs = encoder.create_devices_by_type("bedframe", "h5")
+        fls = encoder.create_devices_by_type("floater", "h5")
+        plotter.plot_salinities(fls, bfs)
+
     def ssc_series_plot(self, dtype="bedframe"):
         if dtype not in INST_TYPES:
             raise ValueError("Type floater or bedframe expected.")
@@ -124,8 +130,8 @@ class Muddy(object):
             plotter.plot_ssc_heatmap(devs)
 
     def series_event(self, dtype="bedframe"):
-        start = EVENT_DATES["start"]
-        end = EVENT_DATES["end"]
+        start = CALM_EVENT_DATES["start"]
+        end = CALM_EVENT_DATES["end"]
         otitle = "Event from %s to %s" % (start, end)
         dfrain = station.get_rainfall(start=start, end=end)
         dfrivers = station.get_rivers(start=start, end=end)
@@ -143,7 +149,7 @@ class Muddy(object):
             plotter.plot_event(title, dfrain, dfrivers,
                                dfpress, dfwind, df, dfl)
 
-    def series_ssc_event(self, dtype="bedframe"):
+    def series_ssc_event(self, dtype="floater"):
         # SSC series
         start = EVENT_DATES["start"]
         end = EVENT_DATES["end"]

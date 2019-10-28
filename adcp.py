@@ -54,17 +54,19 @@ class ADCP(object):
         raise NotImplementedError("Must load data into dataframe")
 
     def plot_interval(self, start="2017-06-11 08:00:00+12:00", bursts=6):
-        # S1 mid ebb tide = 08:00
         start_date = datetime.strptime(start, DATES_FORMAT + "%z")
         end_date = start_date + pd.Timedelta("%ss" % (INTERVAL * bursts))
-        df_plot = self.df.loc[start_date:end_date]
+        # df_plot = self.df.loc[start_date:end_date]
+        df_plot = self.df[(self.df.index.get_level_values(0) >= start_date) &
+                          (self.df.index.get_level_values(0) < end_date)]
         df_plot = df_plot.reset_index()
         df_plot = df_plot.set_index('Date')
         df_plot = df_plot[['Vel_Mag', 'Height']]
 
         fig, ax = plt.subplots()
         for i in range(0, bursts):
-            df = df_plot[start_date:start_date]
+            df = df_plot[(df_plot.index >= start_date) &
+                         (df_plot.index < end_date)]
             ax.plot(
                 df.Vel_Mag,
                 df.Height,
@@ -113,6 +115,23 @@ class ADCP(object):
                 ax1.set_xlabel(None)
                 i += 1
             fig.suptitle("%s - %s" % (str(self), a))
+
+    def _set_tide(self):
+        """
+        Calculate trend of tide Ebb/Flood depending on next row's depth.
+        Assuming "WaterDepth" as depth var name
+        """
+        if "Tide" not in self.wd:
+            self.wd["Tide"] = np.where(
+                self.wd["WaterDepth"] > self.wd["WaterDepth"].shift(-1),
+                "Ebb",
+                "Flood")
+        # last row doesn't have a next, compare with previous row
+        last_rows = self.wd.tail(2)
+        if last_rows.iloc[0].WaterDepth > last_rows.iloc[1].WaterDepth:
+            self.wd.at[self.wd.index[-1], "Tide"] = "Ebb"
+        else:
+            self.wd.at[self.wd.index[-1], "Tide"] = "Flood"
 
 
 class RDI(ADCP):
@@ -180,7 +199,8 @@ class RDI(ADCP):
         wd.index.name = "Date"
         wd.index = wd.index.tz_localize(TIMEZONE)
         self.wd = wd
-
+        # set tide depending on water depth
+        self._set_tide()
         # Main dataframe
         index = list(itertools.product(timestamps, self.HEIGHTS))
         indx = pd.MultiIndex.from_tuples(index, names=['Date', 'Height'])
@@ -307,10 +327,13 @@ class Signature1000(ADCP):
         timestamps[0] = timestamps[0] - pd.Timedelta(
             nanoseconds=timestamps[0].nanosecond)
         for i in range(1, len(ml_data["Time"][0][0])):
-            t = pd.to_datetime(ml_data["Time"][0][0][i][0]-719529, unit='D')
-            t = t - pd.Timedelta(microseconds=t.microsecond)
-            t = t - pd.Timedelta(nanoseconds=t.nanosecond)
-            timestamps.append(t)
+            timestamps.append(timestamps[i-1] + pd.Timedelta("%ss" % INTERVAL))
+
+        # for i in range(1, len(ml_data["Time"][0][0])):
+        #     t = pd.to_datetime(ml_data["Time"][0][0][i][0]-719529, unit='D')
+        #     t = t - pd.Timedelta(microseconds=t.microsecond)
+        #     t = t - pd.Timedelta(nanoseconds=t.nanosecond)
+        #     timestamps.append(t)
         # Populate vars
         df_vars = {}
         for v in self.VARS:
@@ -330,6 +353,8 @@ class Signature1000(ADCP):
         wd.index.name = "Date"
         wd.index = wd.index.tz_localize(TIMEZONE)
         self.wd = wd
+        # set tide depending on water depth
+        self._set_tide()
         # Main dataframe
         index = list(itertools.product(timestamps, self.HEIGHTS))
         indx = pd.MultiIndex.from_tuples(index, names=['Date', 'Height'])
@@ -531,6 +556,8 @@ class Aquadopp(ADCP):
         self.wd = self.wd[ADCP_DATES["start"]:ADCP_DATES["end"]]
         self.wd.index.name = "Date"
         self.wd.index = self.wd.index.tz_localize(TIMEZONE)
+        # set tide depending on water depth
+        self._set_tide()
         # Main dataframe
         index = list(itertools.product(timestamps, self.HEIGHTS))
         indx = pd.MultiIndex.from_tuples(index, names=['Date', 'Height'])
@@ -558,35 +585,6 @@ class Aquadopp(ADCP):
         self.df_sen = self.df_sen.set_index("datetime")
         self.df_sen = self.df_sen[ADCP_DATES["start"]:ADCP_DATES["end"]]
         self.df_sen.index = self.df_sen.index.tz_localize(TIMEZONE)
-
-    # def plot_interval(self, start="2017-05-18 00:00:00", end="2017-05-17 01:00:00"):
-    #     df_plot = self.df.loc[start:end]
-    #     df_plot = df_plot.reset_index()
-    #     df_plot = df_plot.set_index('Date')
-    #     df_plot = df_plot[['Vel_Mag', 'Height']]
-
-    #     fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(28, 4))
-    #     # sns.scatterplot(
-    #     #     'Date',
-    #     #     'Vel_Mag',
-    #     #     data=df_plot,
-    #     #     alpha=1,
-    #     #     hue="Height",
-    #     #     ax=ax)
-    #     # ax.plot(df_plot)
-
-    #     ax.scatter(
-    #         df_plot.Vel_Mag,
-    #         df_plot.Height,
-    #         s=10,
-    #         c=df_plot.index,
-    #         cmap='jet')
-    #     ax.set_ylabel("Velocity\nspeed [m/s]")
-    #     ax.set_xlim(0, 0.5)
-    #     # ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=10))
-    #     # ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M",
-    #     #                              tz=df_plot.index.tz))
-    #     ax.legend()
 
     def __str__(self):
         return "Aquadopp %s" % self.site
@@ -666,6 +664,40 @@ class Aquadopp(ADCP):
                 ax1.set_xlabel(None)
                 i += 1
             fig.suptitle("%s - %s" % (str(self), v))
+
+    def plot_asimmetry(self):
+        fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(28, 4))
+
+        # start_date = datetime.strptime("2017-05-17 09:30:00+12:00", DATES_FORMAT + "%z")
+        # end_date = datetime.strptime("2017-05-17 12:10:00+12:00", DATES_FORMAT + "%z")
+        # df_plot = self.df[(self.df.index.get_level_values(0) >= start_date) &
+        #                   (self.df.index.get_level_values(0) < end_date)]
+        # df_plot = self.df.meand(level=)
+        # levels = ADCP_LEVELS[self.site - 1]
+        # subdf = df_plot.loc[pd.IndexSlice[:, levels[0]], :]
+        # subdf.index = subdf.index.droplevel(level=0)  # drop date
+
+        # subdf = subdf.reset_index()
+        # subdf = subdf.set_index('Date')
+        ebb_df = self.df[self.df.Tide == "Ebb"].mean(level=1).reset_index()
+        flood_df = self.df[self.df.Tide == "Flood"].mean(level=1).reset_index()
+        ax.plot(
+            flood_df.Vel_E_TN,
+            flood_df.Height,
+            c="green",
+            label="Flood")
+        ax.plot(
+            ebb_df.Vel_E_TN,
+            ebb_df.Height,
+            c="blue",
+            label="Ebb")
+        # uncomment to show nans as 0
+        # .fillna(0)
+        # ax.invert_yaxis()  # distance from bottom to top
+        ax.set_ylabel("Water depth [m]")
+        ax.set_xlabel("Velocity E")
+        # ax.set_ylim(bottom=0)
+        # ax.set_xlim(self.df.Vel_E_TN.min(), -(self.df.Vel_E_TN.min()))
 
     def plot_magnitude(self):
         dfwindlist = station.get_weekly_wind()

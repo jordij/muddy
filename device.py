@@ -108,9 +108,11 @@ class Device(object):
             rsk = pyrsktools.open(data_path)
             # Pandas dataframe for the win
             self.df = pd.DataFrame(rsk.npsamples())
-            # timestamp as index, then UTC to NZ
+            # timestamp as index, localize it as NZST
             self.df = self.df.set_index("timestamp")
-            self.df.index = self.df.index.tz_convert(TIMEZONE)
+            self.df.index = self.df.index.tz_convert(None)
+            self.df.index = self.df.index.tz_localize(TIMEZONE)
+            self.set_ssc()
         self.logger.info(
             "Using %s as a dataframe source for %s",
             data_path,
@@ -177,7 +179,7 @@ class Device(object):
                     self.T,
                     self.SSC),
                 axis=1)
-            # S1 floater sturated, remove max values
+            # S1 floater saturated, remove max values
             if self.site == "S1" and self.dtype == "floater":
                 d = self.get_dict_device()
                 self.df.loc[
@@ -278,6 +280,14 @@ class Device(object):
                 round(self.df_avg[self.df_avg.H > 0].H.max(), 2),
                 round(self.df_avg[self.df_avg.H > 0].H.min(), 2))
 
+    def get_period_stats(self):
+        """
+        Burst-averaged mean, max, min values of peak period [s]
+        """
+        return (round(self.df_avg[self.df_avg["T"] > 0]["T"].mean(), 2),
+                round(self.df_avg[self.df_avg["T"] > 0]["T"].max(), 2),
+                round(self.df_avg[self.df_avg["T"] > 0]["T"].min(), 2))
+
     def get_u_stats(self):
         """
         Burst-averaged mean, max, min values of orbital velocity [cm/s]
@@ -285,6 +295,14 @@ class Device(object):
         return (round(self.df_avg[self.df_avg["u"] > 0]["u"].mean(), 2),
                 round(self.df_avg[self.df_avg["u"] > 0]["u"].max(), 2),
                 round(self.df_avg[self.df_avg["u"] > 0]["u"].min(), 2))
+
+    def get_ssc_stats(self):
+        """
+        Burst-averaged mean, max, min values of SSC [mg/l]
+        """
+        return (round(self.df_avg[self.df_avg["ssc"] > 0.01]["ssc"].mean(), 4),
+                round(self.df_avg[self.df_avg["ssc"] > 0.01]["ssc"].max(), 4),
+                round(self.df_avg[self.df_avg["ssc"] > 0.01]["ssc"].min(), 4))
 
     def get_time_stats(self):
         """
@@ -324,21 +342,22 @@ class Device(object):
                 self.dtype,
                 AVG_FOLDER,
                 str(date))
-            # dfr = dfday.resample("%ss" % self.i).mean()
-            # plotter.plot_hourly_ssc_depth_avg(
-            #     dfr[["ssc", "depth_00"]],
-            #     date,
-            #     dest_file,
-            #     title)
-            # averaged CLEAN turb and depth
-            dfr = self.df_avg[self.df_avg.index.date == date]
-            parts = dest_file.split(".")
-            dest_file = ".".join(parts[:-1]) + "_clean" + "." + parts[-1]
+            dfr = dfday.resample("%ss" % self.i).mean()
             plotter.plot_hourly_ssc_depth_avg(
                 dfr[["ssc", "depth_00"]],
                 date,
                 dest_file,
                 title)
+            if self.df_avg is not None:
+                # averaged CLEAN turb and depth
+                dfr = self.df_avg[self.df_avg.index.date == date]
+                parts = dest_file.split(".")
+                dest_file = ".".join(parts[:-1]) + "_clean" + "." + parts[-1]
+                plotter.plot_hourly_ssc_depth_avg(
+                    dfr[["ssc", "depth_00"]],
+                    date,
+                    dest_file,
+                    title)
 
     def plot_avg(self):
         """

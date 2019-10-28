@@ -11,6 +11,12 @@ colours = {
 # Edit at according to your data. Could do it programmatically
 # but not worth it at this point IMHO
 
+COMMON_LIMITS = {
+    "SSC_ticks": [0, 1000, 2000, 3600],
+    "U_ticks": [0, 45, 90],
+    "Wave_ticks": [0, 0.5, 1],
+}
+
 LIMITS = {
     "S5 Bedframe": {
         "SSC_ticks": [

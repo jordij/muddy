@@ -7,7 +7,7 @@ import seaborn as sns
 import itertools
 from constants import TIMEZONE, ADCP_DATES, EVENT_DATES, CALM_EVENT_DATES
 from pandas.plotting import register_matplotlib_converters
-from tools import station, encoder
+from tools import station, encoder, plotter
 
 
 register_matplotlib_converters()
@@ -36,7 +36,7 @@ class Wave(object):
             site)
         datafile_0 = os.path.join(FILEPATH, folder_0)
         ml_data_0 = sio.loadmat(datafile_0)["WaveStats"]
-
+        self.m_datq = ml_data_0
         folder_1 = "Site{0}/S{0}a_WaveStats_noQC.mat".format(
             site)
         datafile_1 = os.path.join(FILEPATH, folder_1)
@@ -64,8 +64,9 @@ class Wave(object):
         df_vars["Time"] = timestamps
         df = pd.DataFrame.from_dict(df_vars)
         df = df.set_index("Time")
-        df.index = df.index.tz_localize("UTC")
-        df.index = df.index.tz_convert(TIMEZONE)
+        # df.index = df.index.tz_localize("UTC")
+        # df.index = df.index.tz_convert(TIMEZONE)
+        df.index = df.index.tz_localize(TIMEZONE)
         df = df[ADCP_DATES["start"]:ADCP_DATES["end"]]
         self.df = df.replace(-1, np.NaN)
         self.concerto = encoder.create_device(
@@ -73,6 +74,9 @@ class Wave(object):
             "bedframe", "h5")
 
     def plot(self):
+        sns.set(rc={"figure.figsize": (20, 12)})
+        sns.set_style("ticks")
+        plotter.set_font_sizes(big=False)
         concerto_df = self.concerto.df_avg
         weeks = self.df.index.week
         for week, df in self.df.groupby(weeks):
@@ -83,31 +87,40 @@ class Wave(object):
             # water depth
             ax = axes[0]
             ax.plot(df.index, df["WaterDepth"], linestyle=":",
-                    color="green", label="RDI water depth")
+                    color="green", label="ADCP")
             ax.plot(cdf.index, cdf["depth_00"], linestyle=":",
-                    color="blue", label="Concerto water depth")
+                    color="blue", label="Concerto")
             ax.set_ylabel("Water depth [m]")
-            ax.set_ylim(bottom=0, top=max(
-                df["WaterDepth"].max(),
-                cdf["depth_00"].max()))
+            axes[0].set_ylim(bottom=0, top=6)
+            axes[0].set_yticks([0, 2, 4, 6])
+            ax.legend(loc="best", ncol=1,
+                      frameon=True)
             # peak period
             ax = axes[1]
             ax.plot(df.index, df["Tp"],
-                    color="green", label="RDI peak period")
+                    color="green", label="ADCP")
             ax.plot(cdf.index, cdf["T"],
-                    color="blue", label="Concerto peak period")
-            ax.set_ylabel("peak period [s]")
+                    color="blue", label="Concerto")
+            ax.set_ylabel("Peak period [s]")
+            axes[1].set_ylim(bottom=0, top=30)
+            axes[1].set_yticks([0, 10, 20, 30])
+            ax.legend(loc="best", ncol=1,
+                      frameon=True)
             # sig. wave height
             ax = axes[2]
             ax.plot(df.index, df["Hs"],
-                    color="green", label="RDI sig. wave height")
+                    color="green", label="ADCP")
             ax.plot(cdf.index, cdf["H"],
-                    color="blue", label="Concerto sig. wave height")
-            ax.set_ylabel("sig. wave height [m]")
-            fig.legend()
+                    color="blue", label="Concerto")
+            axes[2].set_ylim(bottom=0, top=1.25)
+            axes[2].set_yticks([0, 0.5, 1])
+            ax.set_ylabel("Sig. wave height [m]")
+            ax.legend(loc="best", ncol=1,
+                      frameon=True)
+            fig.tight_layout()
 
-    def plot_interval(self, start=EVENT_DATES["start"],
-                      end=EVENT_DATES["end"]):
+    def plot_interval(self, start=CALM_EVENT_DATES["start"],
+                      end=CALM_EVENT_DATES["end"]):
         """
         Plot interval defined by start/end dates
         """
@@ -119,7 +132,7 @@ class Wave(object):
         # water depth
         ax = axes[0]
         ax.plot(df.index, df["WaterDepth"], linestyle=":",
-                color="green", label="RDI water depth")
+                color="green", label="ADCP water depth")
         ax.plot(cdf.index, cdf["depth_00"], linestyle=":",
                 color="blue", label="Concerto water depth")
         ax.set_ylabel("Water depth [m]")
@@ -129,14 +142,14 @@ class Wave(object):
         # peak period
         ax = axes[1]
         ax.plot(df.index, df["Tp"], "-o",
-                color="green", label="RDI peak period")
+                color="green", label="ADCP peak period")
         ax.plot(cdf.index, cdf["T"], "-o",
                 color="blue", label="Concerto peak period")
         ax.set_ylabel("peak period [s]")
         # sig. wave height
         ax = axes[2]
         ax.plot(df.index, df["Hs"], "-o",
-                color="green", label="RDI sig. wave height")
+                color="green", label="ADCP sig. wave height")
         ax.plot(cdf.index, cdf["H"], "-o",
                 color="blue", label="Concerto sig. wave height")
         ax.set_ylabel("sig. wave height [m]")
