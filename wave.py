@@ -76,7 +76,7 @@ class Wave(object):
     def plot(self):
         sns.set(rc={"figure.figsize": (20, 12)})
         sns.set_style("ticks")
-        plotter.set_font_sizes(big=False)
+        plotter.set_font_sizes()
         concerto_df = self.concerto.df_avg
         weeks = self.df.index.week
         for week, df in self.df.groupby(weeks):
@@ -112,9 +112,10 @@ class Wave(object):
                     color="green", label="ADCP")
             ax.plot(cdf.index, cdf["H"],
                     color="blue", label="Concerto")
-            axes[2].set_ylim(bottom=0, top=1.25)
-            axes[2].set_yticks([0, 0.5, 1])
-            ax.set_ylabel("Sig. wave height [m]")
+            ax.set_ylim(bottom=0, top=1.25)
+            ax.set_yticks([0, 0.5, 1])
+            ax.set_ylabel("Significant wave\nheight [m]")
+            ax.set_xlabel("Date")
             ax.legend(loc="best", ncol=1,
                       frameon=True)
             fig.tight_layout()

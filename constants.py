@@ -8,8 +8,12 @@ RAW_PATH = "D:/EE-FoT-May2017Expt/Concertos/RawData/"
 PROCESSED_PATH = "./data/rsk/"
 H5_PATH = "./data/hd5/"
 AVG_FOLDER = "average"
+FLUXES_PATH = "./data/fluxes/"
 
 BATHYMETRY_PATH = "./data/transect_bathymetry.csv"
+KARIN_PATH = "./data/KarinProfile.csv"
+ANDREW_PATH = "./data/AndrewProfile.csv"
+
 
 INSTR_LOCS_PATH = "./data/Instrument_Locs.csv"
 BASEMAP_IMG_PATH = "./data/lds-chart-nz-533-firth-of-thames-JPEG/chart-nz-" \
@@ -28,17 +32,22 @@ ADCP_DATES = {
 }
 # Storm event dates
 EVENT_DATES = {
-    "start": "2017-05-17 00:00:00",
-    "end": "2017-05-20 00:00:00",
+    "start": "2017-05-17 06:00:00",
+    "end": "2017-05-18 18:00:00",
 }
+PRESO_DATES = {
+    "start": "2017-06-09 00:50:00",
+    "end": "2017-06-10 01:10:00",
+}
+
 POSTER_DATES = {
     "start": "2017-05-17 17:00:00",
     "end": "2017-05-18 05:00:00",
 }
 # Calm dates
 CALM_EVENT_DATES = {
-    "start": "2017-06-11 00:00:00",
-    "end": "2017-06-11 18:00:00",
+    "start": "2017-06-10 15:00:00",
+    "end": "2017-06-11 01:00:00",
 }
 DATES_FORMAT = "%Y-%m-%d %H:%M:%S"
 # transect

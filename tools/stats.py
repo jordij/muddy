@@ -7,7 +7,7 @@ from tools import encoder
 
 def basic_stats():
     """
-    Basic stats for our set onf instruments
+    Basic stats for set of concerto instruments
     """
     devs = []
     for t in INST_TYPES:  # all instruments

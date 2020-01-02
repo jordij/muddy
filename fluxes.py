@@ -1,72 +1,81 @@
 import numpy as np
-from tools import encoder, plotter
-from adcp import Aquadopp, RDI, Signature1000
-from windrose import plot_windrose
+import pandas as pd
+from constants import FLUXES_PATH
+from tools import plotter
+from cmath import rect, phase
 
-FLUXES_PATH = "./data/fluxes/"
+
 DZ = 0.1
 
-plotter.set_font_sizes(big=False)
+
+def correct_angle(theta):
+    """
+    Transform negative to 0-360 range
+    """
+    if theta < 0:
+        theta = theta + 360
+    if theta == 0:
+        theta = 360
+    return theta
 
 
-def calc_flux(dfl, dbf, adcp, method="average"):
-    if method == "average":
-        if dfl:  # 1/h * SSC(avg) in KG
-            dbf.df_avg['C'] = ((dbf.df_avg.ssc + dfl.df_avg.ssc)/2) * (1/dbf.df_avg['depth_00'])
-        else:  # 1/h * SSC
-            dbf.df_avg['C'] = (dbf.df_avg.ssc) * (1/dbf.df_avg['depth_00'])
-        # Q for N/S and E/W components
-        dbf.df_avg['Q_N_TN'] = adcp.df.Vel_N_TN.groupby(level=0).sum() * DZ
-        dbf.df_avg['Q_E_TN'] = adcp.df.Vel_E_TN.groupby(level=0).sum() * DZ
+def mean_Vel_Dir_TN(df):
+    """
+    Wrapper for mean_angle with direction
+    """
+    return mean_angle(df["Vel_Dir_TN"])
+
+
+def mean_angle(deg):
+    """
+    Mean angle between 2 angles in degrees
+    """
+    a = deg[0]
+    b = deg[1]
+    if np.isnan(a) and not np.isnan(b):
+        return b
+    elif not np.isnan(a) and np.isnan(b):
+        return a
+    elif np.isnan(a) and np.isnan(b):
+        return np.NaN
     else:
-        dbf.df_avg['C'] = dbf.df_avg.ssc
-        # Q for N/S and E/W components
-        adcp_df = adcp.df.loc[pd.IndexSlice[:, adcp.HEIGHTS[0:2]], :]
-        dbf.df_avg['Q_N_TN'] = adcp_df.Vel_N_TN.groupby(level=0).mean()
-        dbf.df_avg['Q_E_TN'] = adcp_df.Vel_E_TN.groupby(level=0).mean()
-    dbf.df_avg['QN'] = dbf.df_avg['C'] * dbf.df_avg['Q_N_TN']
-    dbf.df_avg['QE'] = dbf.df_avg['C'] * dbf.df_avg['Q_E_TN']
-    # U and V in average
-    dbf.df_avg['U_avg'] = adcp.df.Vel_N_TN.groupby(level=0).mean()
-    dbf.df_avg['V_avg'] = adcp.df.Vel_E_TN.groupby(level=0).mean()
+        diff = ((a - b + 180 + 360) % 360) - 180
+        angle = (360 + b + (diff / 2)) % 360
+        # print("Average between %d and %d is %d" % (a, b, angle))
+        return angle
+
+
+def calc_flux(dfl, dbf, adcp, filename,
+              heights, save=False, method="bedframe"):
+    if method == "average":
+        if dfl is not None:  # 1/h * SSC(avg)
+            dbf['C'] = ((dbf.ssc + dfl.ssc)/2) * (1/dbf['depth_00'])
+        else:  # 1/h * SSC
+            dbf['C'] = dbf.ssc * (1/dbf['depth_00'])
+        adcp_df = adcp  # use all bins available
+    elif method == "bedframe":  # just 2 bottoms bins
+        dbf['C'] = (dbf.ssc / 1000)  #* (1/dbf['depth_00'])  # mg/L to kg/m^3
+        adcp_df = adcp.loc[pd.IndexSlice[:, heights], :]
+    else:
+        raise ValueError("Unkown method")
+    # Q for N/S and E/W components
+    dbf['U_avg'] = adcp_df.groupby(level=0).Vel_N_TN.mean()
+    dbf['V_avg'] = adcp_df.groupby(level=0).Vel_E_TN.mean()
+    dbf['Vel_Mag'] = adcp_df.groupby(level=0).Vel_Mag.mean()
+    dbf['QN'] = dbf['C'] * dbf['U_avg'] * DZ  # kg/m^2/s
+    dbf['QE'] = dbf['C'] * dbf['V_avg'] * DZ  # kg/m^2/s
     # Total Q and direction (degrees)
-    dbf.df_avg['Q'] = np.sqrt(np.power(dbf.df_avg['QN'].astype(np.float32), 2) + np.power(dbf.df_avg['QE'].astype(np.float32), 2))
-    dbf.df_avg['Qdir'] = np.degrees(np.arctan2(dbf.df_avg['U_avg'], dbf.df_avg['V_avg']))
-    dbf.df_avg['Qdir'] = dbf.df_avg.apply(
-        lambda r: r.Qdir + 360 if r.Qdir < 0 else r.Qdir, axis=1)
-    print("MAX Q: " + str(dbf.df_avg['Q'].max()))
-    print("MIN Q: " + str(dbf.df_avg['Q'].min()))
-    # Save DF in h5 format
-    dbf.df_avg.to_hdf("%s%s.h5" % (FLUXES_PATH, dbf.file), key="df", mode="w")
-    # Plot flux rose
-    ax = plot_windrose(dbf.df_avg, var_name="Q", direction_name="Qdir", kind='bar',
-                       bins=np.arange(0, 100, 10), normed=True, opening=0.8)
-    ax.set_yticks([])
-    legend = ax.set_legend(
-        bbox_to_anchor=(-0.25, 1),
-        title="Q [mg/m/s]",
-        loc='upper left')
-    labels = [
-        u"0 ≤ Q < 10",
-        u"10 ≤ Q < 20",
-        u"20 ≤ Q < 30",
-        u"30 ≤ Q < 40",
-        u"40 ≤ Q < 50",
-        u"50 ≤ Q < 60",
-        u"60 ≤ Q < 70",
-        u"70 ≤ Q < 80",
-        u"80 ≤ Q < 90",
-        u"Q ≥ 90"]
-    for i, l in enumerate(labels):
-        legend.get_texts()[i].set_text(l)
-
-
-adcps = [Aquadopp(1), Aquadopp(2), Aquadopp(3), Signature1000(4), RDI(5)]
-i = 0
-for dbf in encoder.create_devices_by_type("bedframe", "h5"):
-    dfl = None
-    if dbf.site != "S3":  # no floater
-        dfl = encoder.create_device(dbf.site, "floater", "h5")
-    adcp = adcps[i]
-    calc_flux(dfl, dbf, adcp, method="bedframe")
-    i += 1
+    qn_sq = np.power(dbf['QN'].astype(np.float32), 2)
+    qe_sq = np.power(dbf['QE'].astype(np.float32), 2)
+    dbf['Q'] = np.sqrt(qn_sq + qe_sq)
+    dbf['Q_dir'] = adcp_df.groupby(level=0).apply(mean_Vel_Dir_TN)
+    if save:
+        # Save DF in h5 format
+        filename = "%s%s_%s.h5" % (FLUXES_PATH, filename, method)
+        dbf.to_hdf(filename, key="df", mode="w")
+        print(dbf.Q.max())
+        print(dbf.Q.min())
+        print("------")
+    else:
+        filename = "%s_%s" % (filename, method)
+        plotter.plot_flux_windrose(dbf, filename)

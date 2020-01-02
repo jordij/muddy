@@ -12,6 +12,7 @@ data/NIWA/
 data/WRC/
 data/Currents/
 data/fluxes/
+data/*Profile*.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

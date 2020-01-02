@@ -46,6 +46,7 @@ def plot_river_flows():
             df["Flow"],
             label=k)
     ax.set_ylabel("Flow discharge [m^3/s]")
+    ax.set_xlabel("Date")
     ax.xaxis.set_major_locator(mdates.DayLocator(interval=7))
     ax.xaxis.set_minor_locator(mdates.DayLocator(interval=1))
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%d-%B"))
@@ -85,6 +86,7 @@ def plot_rain():
     ax.set_yticks(np.arange(0, 16, 2))
     ax.spines["left"].set_bounds(0, 14)
     ax.set_ylabel("Rainfall [mm]")
+    ax.set_xlabel("Date")
     fig.autofmt_xdate()
     fig.show()
 
@@ -299,7 +301,7 @@ def get_wind(start=None, end=None):
     df["direction"] = df["Dir(DegT)"]
     df.index = df.index.tz_localize(TIMEZONE)
     if start is not None and end is not None:
-        return df[(df.index >= start) & (df.index < end)]
+        return df[(df.index >= start) & (df.index <= end)]
     else:
         return df
 

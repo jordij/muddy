@@ -1,7 +1,8 @@
 import fire
 import logging
 
-from constants import SITES, INST_TYPES, EVENT_DATES, POSTER_DATES, CALM_EVENT_DATES
+from constants import (SITES, INST_TYPES, EVENT_DATES,
+                       POSTER_DATES, CALM_EVENT_DATES, PRESO_DATES)
 from tools import plotter, encoder, structure, stats, station
 import maps
 
@@ -151,8 +152,8 @@ class Muddy(object):
 
     def series_ssc_event(self, dtype="floater"):
         # SSC series
-        start = EVENT_DATES["start"]
-        end = EVENT_DATES["end"]
+        start = CALM_EVENT_DATES["start"]
+        end = CALM_EVENT_DATES["end"]
         title = "%s Event from %s to %s" % (dtype, start, end)
         devs = encoder.create_devices_by_type(dtype, "h5")
         for d in devs:
@@ -160,6 +161,30 @@ class Muddy(object):
                 (d.df_avg.index >= start) & (d.df_avg.index < end)
             ]
         plotter.plot_event_ssc_series(devs, title)
+
+    def presentation_ssc_event(self, dtype="bedframe"):
+        # SSC series
+        start = PRESO_DATES["start"]
+        end = PRESO_DATES["end"]
+        title = "%s Event from %s to %s" % (dtype, start, end)
+        # fluxes = []
+        floaters = []
+        devs_dfs = []
+        for d in devs:
+            if d.site != "S3":  # no floater
+                dfl = encoder.create_device(d.site, "floater", "h5").df_avg
+                dfl = dfl[(dfl.index >= start) & (dfl.index < end)]
+            else:
+                dfl = None
+            floaters.append(dfl)
+            devs_dfs.append(d.df_avg[(d.df_avg.index >= start) &
+                                     (d.df_avg.index < end)])
+            # dflux = encoder.get_flux_df(d.site)
+            # fluxes.append(dflux[(dflux.index >= start) & (dflux.index < end)])
+        dfwind = station.get_wind(start=start, end=end)
+        dfrain = station.get_rainfall(start=start, end=end)
+        dfpress = station.get_pressure(start=start, end=end)
+        plotter.plot_presentation_ssc_event(devs_dfs, floaters, dfwind, dfrain, dfpress, title)
 
     def stats(self):
         stats.basic_stats().to_csv('./data/stats.csv')

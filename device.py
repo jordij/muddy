@@ -7,7 +7,7 @@ import pyrsktools
 from burst import BurstFourier, BurstWelch, BurstPeaks
 from constants import (H5_PATH, OUTPUT_PATH, PROCESSED_PATH, VARIABLES,
                        TIMEZONE, AVG_FOLDER, Z_ELEVATION, DEVICES)
-from intervals import DATA_INTERVALS
+from intervals import DATA_INTERVALS, CALM_INTERVALS, STORM_INTERVALS
 from tools import plotter, station
 
 
@@ -51,6 +51,7 @@ class Device(object):
         self.sr = sr
         self.i = i
         self.z = Z_ELEVATION
+        self.df_tidal = None
         if len(T) != len(SSC):
             raise ValueError("T and SSC must have the same length")
         self.T = T
@@ -435,8 +436,72 @@ class Device(object):
                 i)
             i += 1
 
+    def plot_depth(self):
+        return plotter.plot_depth(self.df_avg)
+
     def get_weekly_corrected_depth(self):
         self.df["depth_corrected"] = self.df["depth_00"] - 0.15
         self.df.loc[self.df["depth_corrected"] < 0, ["depth_corrected"]] = 0
         return [g[1]["depth_corrected"].resample("%ss" % self.i).mean()
                 for g in self.df.groupby(self.df.index.week)]
+
+    def plot_tidal_ssc(self, intervals=None):
+        """
+        Plot SSC and U values per tidal cycle defined by given intervals.
+        """
+        if intervals is None:
+            intervals = STORM_INTERVALS[self.__str__()]
+        else:
+            intervals = intervals[self.__str__()]
+        tidal_vars = ["hours", "u", "ssc", "H", "depth_00", "T"]
+
+        if self.df_tidal is None:
+            tdelta = pd.Timedelta("300s")
+            df_tidal = pd.DataFrame()
+            for interval in intervals:
+                df_int = self.df_avg[interval[0]:interval[1]]
+                mid = df_int[df_int["Tide"] == "Ebb"].head(1).index[0] - tdelta
+                df_int["hours"] = df_int.apply(
+                    lambda r: get_hours(r, mid),
+                    axis=1)
+                df_tidal = df_tidal.append(df_int[tidal_vars])
+                df_tidal["ssc"] = pd.to_numeric(df_tidal["ssc"])
+            self.df_tidal = df_tidal
+        plotter.plot_tidal_u_ssc(self.df_tidal, intervals)
+
+    def get_intervals_df(self, intervals=None):
+        """
+        Plot SSC and U values per tidal cycle defined by given intervals.
+        """
+        if intervals is None:
+            intervals = STORM_INTERVALS[self.__str__()]
+        else:
+            intervals = intervals[self.__str__()]
+        tidal_vars = ["u", "ssc", "depth_00", "Tide"]
+
+        if self.df_tidal is None:
+            tdelta = pd.Timedelta("300s")
+            df_tidal = pd.DataFrame()
+            for interval in intervals:
+                df_int = self.df_avg[interval[0]:interval[1]]
+                # mid = df_int[df_int["Tide"] == "Ebb"].head(1).index[0] - tdelta
+                # df_int["hours"] = df_int.apply(
+                #     lambda r: get_hours(r, mid),
+                #     axis=1)
+                df_tidal = df_tidal.append(df_int[tidal_vars])
+                df_tidal["ssc"] = pd.to_numeric(df_tidal["ssc"])
+                df_tidal["depth_00"] = pd.to_numeric(df_tidal["depth_00"])
+                df_tidal["site"] = self.site
+                self.df_tidal = df_tidal
+        return self.df_tidal
+
+
+def get_hours(row, mid_value):
+    """
+    Get signed difference, in seconds, between row index (name)
+    and given mid_value timestamp
+    """
+    if (row.name < mid_value):
+        return -(mid_value - row.name).total_seconds()/3600
+    else:
+        return (row.name - mid_value).total_seconds()/3600

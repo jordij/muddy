@@ -1,7 +1,8 @@
 import pandas as pd
 import pyrsktools
 
-from constants import RAW_PATH, PROCESSED_PATH, H5_PATH, TIMEZONE, DEVICES
+from constants import (RAW_PATH, PROCESSED_PATH, H5_PATH,
+                       TIMEZONE, DEVICES, FLUXES_PATH)
 from device import Device
 
 
@@ -39,6 +40,11 @@ def create_device(site, dtype, origin):
         SSC=d["SSC"],
         dformat=origin
     )
+
+
+def get_flux_df(site, method="bedframe"):
+    datapath = "%s%s_%s.h5" % (FLUXES_PATH, site, method)
+    return pd.read_hdf(datapath, "df")
 
 
 def get_df(device, origin):

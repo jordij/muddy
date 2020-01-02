@@ -10,7 +10,8 @@ from constants import (TIMEZONE, ADCP_DATES, DATES_FORMAT,
                        CALM_TIDES, STORM_TIDES)
 from datetime import datetime
 from pandas.plotting import register_matplotlib_converters
-from tools import station
+from intervals import STORM_INTERVALS, CALM_INTERVALS
+from tools import station, plotter
 
 
 register_matplotlib_converters()
@@ -53,10 +54,15 @@ class ADCP(object):
         """ Method to be implemented in each subclass """
         raise NotImplementedError("Must load data into dataframe")
 
+    def get_site(self):
+        return "S%d" % self.site
+
     def plot_interval(self, start="2017-06-11 08:00:00+12:00", bursts=6):
+        """
+        Plot velocity profile (magnitude) for given interval
+        """
         start_date = datetime.strptime(start, DATES_FORMAT + "%z")
         end_date = start_date + pd.Timedelta("%ss" % (INTERVAL * bursts))
-        # df_plot = self.df.loc[start_date:end_date]
         df_plot = self.df[(self.df.index.get_level_values(0) >= start_date) &
                           (self.df.index.get_level_values(0) < end_date)]
         df_plot = df_plot.reset_index()
@@ -73,14 +79,58 @@ class ADCP(object):
                 '-o',
                 label=start_date.strftime("%Hh:%Mm"))
             start_date = start_date + pd.Timedelta("%ss" % (INTERVAL))
-        ax.set_xlabel("Velocity\nspeed [m/s]")
-        ax.set_ylabel("Height above\nhead [m]")
-        ax.set_xlim(0, df_plot.Vel_Mag.max() + 0.05)
+        ax.set_xlabel("Velocity speed [m/s]")
+        ax.set_ylabel("Height above head [m]")
+        ax.set_xticks([0, 0.05, 0.1, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45,
+                      0.50, 0.55, 0.60, 0.65, 0.70])
         ax.legend()
         fig.suptitle("Velocity profile - %s from %s to %s" %
                      (str(self), start, end_date))
 
+    def plot_mean_velocity(self, component="Vel_E_TN"):
+        """
+        Plot mean values for the given component by STORM and CALM intervals
+        """
+        intervals = STORM_INTERVALS["S%d Bedframe" % self.site]
+        df = self.df.groupby(level=0).mean()[["Vel_N_TN", "Vel_E_TN"]]
+        df = df.join(self.wd, how="left")
+        sdf = pd.DataFrame()
+        for interval in intervals:
+            sdf = sdf.append(df[interval[0]:interval[1]])
+
+        intervals = CALM_INTERVALS["S%d Bedframe" % self.site]
+        cdf = pd.DataFrame()
+        for interval in intervals:
+            cdf = cdf.append(df[interval[0]:interval[1]])
+
+        vmax = max(sdf[component].abs().max(), cdf[component].abs().max())
+        vmin = -vmax
+
+        sns.set_style("ticks")
+        plotter.set_font_sizes()
+        fig, axes = plt.subplots(ncols=2, nrows=1,
+                                 figsize=(16, 20), sharey=True)
+        sns.scatterplot(x=component, y="WaterDepth", hue="Tide",
+                        data=sdf, s=100, ax=axes[0])
+        sns.scatterplot(x=component, y="WaterDepth", hue="Tide",
+                        data=cdf, s=100, ax=axes[1])
+        for ax in axes:
+            ax.set_xlim(vmin - 0.025, vmax + 0.025)
+            ax.set_ylim(0)
+            ax.axvline(0, ls="--", color="grey")
+            ax.set_ylabel("Water depth [m]")
+            ax.set_xlabel("Velocity E-W [m/s]")
+        fig.subplots_adjust(top=0.968,
+                            bottom=0.105,
+                            left=0.059,
+                            right=0.984,
+                            hspace=0.2,
+                            wspace=0.039)
+
     def plot_amplitude(self):
+        """
+        Plot heatmap as a timeseries for all amplitudes
+        """
         for a in self.AMPLITUDES:
             fig, axes = plt.subplots(ncols=1, nrows=4, figsize=(28, 4))
             cbar_ax = fig.add_axes([0.935, .108, .01, .75])
@@ -210,31 +260,36 @@ class RDI(ADCP):
         self.df = df.join(wd, how="left")
 
     def plot_magnitude(self):
+        """
+        Plot timeseries of velocity magnitude and direction
+        along environmental variables (wind, temperature, depth)
+        """
         dfwindlist = station.get_weekly_wind()
         weeks = self.df.index.get_level_values('Date').week
         i = 0
+        sns.set_style("ticks")
+        plotter.set_font_sizes(False)
         for week, df in self.df.groupby(weeks):
             dfwind = dfwindlist[i]
             fig, axes = plt.subplots(ncols=1, nrows=4,
-                                     figsize=(28, 4), sharex=True)
+                                     figsize=(24, 4), sharex=True)
             ax = axes[0]
             ax.scatter(dfwind.index, dfwind["speed"], s=4, c="black",
                        label="Wind speed\n[m/s]")
             ax.set_ylabel("Wind speed\n[m/s]")
             ax.set_yticks([0, 7, 14])
             ax.spines["left"].set_bounds(0, 14)
-            ax.legend(loc="center left",
-                      bbox_to_anchor=(-0.155, 0.65), frameon=False)
+            ax.legend(loc="center left", markerscale=5,
+                      bbox_to_anchor=(-0.275, 0.65), frameon=False)
+            ax.spines["right"].set_visible(False)
             ax = ax.twinx()
             ax.scatter(dfwind.index, dfwind["direction"],
-                       marker="x", label="Wind direction\n[degrees]")
-            ax.set_ylabel("Wind direction\n[degrees]")
+                       marker="x", label="Wind\ndirection [ ° ]")
+            ax.set_ylabel("Wind direction [ ° ]")
             ax.set_yticks([0, 90, 180, 270, 360])
-            ax.legend(loc="center left",
-                      bbox_to_anchor=(-0.155, 0.35), frameon=False)
-            ax.spines["right"].set_bounds(0, 360)
+            ax.legend(loc="center left", markerscale=5,
+                      bbox_to_anchor=(-0.275, 0.35), frameon=False)
             ax.xaxis.set_visible(False)
-            ax.spines["right"].set_position(("outward", 15))
             ax.spines["top"].set_visible(False)
             ax.spines["bottom"].set_visible(False)
             ax.spines["left"].set_visible(False)
@@ -242,7 +297,7 @@ class RDI(ADCP):
             ax = axes[1]
             df_sen = self.wd[self.wd.index.week == week]
             ax.plot(df_sen.index, df_sen["WaterDepth"], linestyle=":",
-                    color="black", label="Water Depth [m]")
+                    color="black", label="Water\nDepth [m]")
             ax.set_ylabel("Water depth [m]")
             ax.set_ylim(bottom=0, top=self.wd["WaterDepth"].max())
             # Velocity magnitude & direction
@@ -252,29 +307,102 @@ class RDI(ADCP):
             subdf = df.loc[pd.IndexSlice[:, levels[0]], :]
             subdf.index = subdf.index.droplevel(level=1)  # drop height
             ax.plot(subdf.index, subdf["Vel_Mag"],
-                    color="blue", label='%.1f mab' % levels[0])
+                    color="blue", label='%.1f m hah' % levels[0])
             ax1.scatter(subdf.index, subdf["Vel_Dir_TN"],
-                        color="blue", label='%.1f mab' % levels[0], s=3)
+                        color="blue", label='%.1f m hah' % levels[0], s=3)
             subdf = df.loc[pd.IndexSlice[:, levels[1]], :]
             subdf.index = subdf.index.droplevel(level=1)  # drop height
             ax.plot(subdf.index, subdf["Vel_Mag"],
-                    color="red", label='%.1f mab' % levels[1])
+                    color="red", label='%.1f m hah' % levels[1])
             ax1.scatter(subdf.index, subdf["Vel_Dir_TN"],
-                        color="red", label='%.1f mab' % levels[1], s=3)
+                        color="red", label='%.1f m hah' % levels[1], s=3)
+            ax1.set_yticks([0, 90, 180, 270, 360])
             subdf = df.loc[pd.IndexSlice[:, levels[2]], :]
             subdf.index = subdf.index.droplevel(level=1)  # drop height
             ax.plot(subdf.index, subdf["Vel_Mag"],
-                    color="green", label='%.1f mab' % levels[2])
+                    color="green", label='%.1f m hah' % levels[2])
             ax1.scatter(subdf.index, subdf["Vel_Dir_TN"],
-                        color="green", label='%.1f mab' % levels[2], s=3)
+                        color="green", label='%.1f m hah' % levels[2], s=3)
             ax.legend(loc="center left",
-                      bbox_to_anchor=(-0.155, 0.65), frameon=False)
-            ax1.legend(loc="center left",
-                       bbox_to_anchor=(-0.155, 0.65), frameon=False)
+                      bbox_to_anchor=(-0.275, 0.65), frameon=False)
+            ax1.legend(loc="center left", markerscale=5,
+                       bbox_to_anchor=(-0.275, 0.65), frameon=False)
             ax.set_ylabel("Velocity\nspeed [m/s]")
-            ax1.set_ylabel("Velocity\ndir. [°C]")
-            fig.suptitle("%s - Week %s" % (str(self), i + 1))
+            ax.set_ylim(0, df["Vel_Mag"].max() + 0.05)
+            ax.set_yticks([0, 0.2, 0.4, 0.6])
+            ax1.set_ylabel("Velocity\ndirection [ ° ]")
+            ax1.set_xlabel("Date")
+            fig.subplots_adjust(top=0.971,
+                                bottom=0.06,
+                                left=0.204,
+                                right=0.934,
+                                hspace=0.2,
+                                wspace=0.2)
             i += 1
+
+    def plot_velocity(self):
+        """
+        Plot heatmap of velocity components as timeseries
+        """
+        sns.set_style("ticks")
+        plotter.set_font_sizes()
+        for v in ['Vel_E_TN', 'Vel_N_TN', 'Vel_Up']:
+            fig, axes = plt.subplots(ncols=1, nrows=4, figsize=(18, 12))
+            cbar_ax = fig.add_axes([0.9375, .108, .01, .75])
+            cbar_ax.set_ylabel("Velocity [m/s]")
+            vmax = self.df[v].abs().max()
+            vmin = -vmax
+            i = 0
+            weeks = self.df.index.get_level_values('Date').week
+            for week, df in self.df.groupby(weeks):
+                ax = axes[i]
+                ax1 = ax.twinx()
+                # Velocity
+                dfamp = df.reset_index().pivot(columns='Height', index='Date',
+                                               values=v)
+                # uncomment to show nans as 0
+                # .fillna(0)
+                sns.heatmap(
+                    dfamp.transpose(), cmap='RdYlBu_r',
+                    ax=ax, xticklabels=False,
+                    vmin=vmin, vmax=vmax,
+                    linewidths=.0,
+                    cbar=(i == 0),
+                    cbar_ax=cbar_ax if i == 0 else None)
+                ax.invert_yaxis()  # distance from bottom to top
+                if i == 2:
+                    ax.set_ylabel("Height above instrument head [m]")
+                    ax.yaxis.set_label_coords(-0.0375, 1.05)
+                    ax1.set_ylabel("Water depth [m]")
+                    ax1.yaxis.set_label_coords(1.0245, 1.05)
+                    plt.text(1.0925, 1.45, "Velocity [m/s]", size=20, rotation=90., transform=ax.transAxes)
+                else:
+                    ax.set_ylabel(None)
+                    ax1.set_ylabel(None)
+                ax.set_ylim(bottom=0)
+                ax.set_xlabel(None)
+                # Water depth
+                wd_df = self.wd[self.wd.index.week == week]
+                wd_df.index = wd_df.index.strftime("%d-%m %H:%M")
+                ax1.plot(wd_df.index, wd_df["WaterDepth"],
+                         color="black", label="Water Depth [m]")
+                if i == 2:
+                    ax1.set_ylabel("Water depth [m]")
+                else:
+                    ax.set_ylabel(None)
+                ax1.set_ylim(bottom=0, top=self.HEIGHTS[-1])
+                ax1.xaxis.set_ticks(
+                    np.arange(72, wd_df.WaterDepth.count() + 1, 72))
+                ax1.set_xlabel(None)
+                if i == 3:
+                    ax.set_xlabel("Date")
+                i += 1
+            fig.subplots_adjust(top=0.88,
+                                bottom=0.11,
+                                left=0.055,
+                                right=0.9,
+                                hspace=0.2,
+                                wspace=0.2)
 
     def __str__(self):
         return "RDI %s" % self.site
@@ -310,6 +438,69 @@ class Signature1000(ADCP):
 
     AMPLITUDES = ['a1', 'a2', 'a3', 'a4']
     HEIGHTS = np.linspace(0.6, 8.2, 38).round(1)
+
+    def plot_velocity(self):
+        sns.set_style("ticks")
+        plotter.set_font_sizes()
+        for v in ['Vel_E_TN', 'Vel_N_TN']:
+            fig, axes = plt.subplots(ncols=1, nrows=4, figsize=(18, 12))
+            cbar_ax = fig.add_axes([0.9375, .108, .01, .75])
+            cbar_ax.set_ylabel("Velocity [m/s]")
+            vmax = self.df[v].abs().max()
+            vmin = -vmax
+            i = 0
+            weeks = self.df.index.get_level_values('Date').week
+            for week, df in self.df.groupby(weeks):
+                ax = axes[i]
+                ax1 = ax.twinx()
+                # Velocity
+                dfamp = df.reset_index().pivot(columns='Height', index='Date',
+                                               values=v)
+                # uncomment to show nans as 0
+                # .fillna(0)
+                sns.heatmap(
+                    dfamp.transpose(), cmap='RdYlBu_r',
+                    ax=ax, xticklabels=False,
+                    vmin=vmin, vmax=vmax,
+                    linewidths=.0,
+                    cbar=(i == 0),
+                    cbar_ax=cbar_ax if i == 0 else None)
+                # ax.set_yticks([self.HEIGHTS[0], self.HEIGHTS[-1]])
+                ax.invert_yaxis()  # distance from bottom to top
+
+                if i == 2:
+                    ax.set_ylabel("Height above instrument head [m]")
+                    ax.yaxis.set_label_coords(-0.0275, 1.05)
+                    ax1.set_ylabel("Water depth [m]")
+                    ax1.yaxis.set_label_coords(1.0245, 1.05)
+                    plt.text(1.085, 1.45, "Velocity [m/s]", size=20, rotation=90., transform=ax.transAxes)
+                else:
+                    ax.set_ylabel(None)
+                    ax1.set_ylabel(None)
+                ax.set_ylim(bottom=0)
+                ax.set_xlabel(None)
+                # Water depth
+                wd_df = self.wd[self.wd.index.week == week]
+                wd_df.index = wd_df.index.strftime("%d-%m %H:%M")
+                ax1.plot(wd_df.index, wd_df["WaterDepth"],
+                         color="black", label="Water Depth [m]")
+                if i == 2:
+                    ax1.set_ylabel("Water depth [m]")
+                else:
+                    ax.set_ylabel(None)
+                ax1.set_ylim(bottom=0, top=self.HEIGHTS[-1])
+                ax1.xaxis.set_ticks(
+                    np.arange(72, wd_df.WaterDepth.count() + 1, 72))
+                ax1.set_xlabel(None)
+                if i == 3:
+                    ax.set_xlabel("Date")
+                i += 1
+            fig.subplots_adjust(top=0.88,
+                                bottom=0.11,
+                                left=0.045,
+                                right=0.9,
+                                hspace=0.2,
+                                wspace=0.2)
 
     def __init__(self, site):
         folder = "Site{0}/FoT_Signature1000_S{0}_BurstStats_noQC.mat".format(
@@ -432,28 +623,31 @@ class Signature1000(ADCP):
         dfwindlist = station.get_weekly_wind()
         weeks = self.df.index.get_level_values('Date').week
         i = 0
+        sns.set_style("ticks")
+        plotter.set_font_sizes(False)
         for week, df in self.df.groupby(weeks):
             dfwind = dfwindlist[i]
             fig, axes = plt.subplots(ncols=1, nrows=4,
-                                     figsize=(28, 4), sharex=True)
+                                     figsize=(24, 4), sharex=True)
             ax = axes[0]
             ax.scatter(dfwind.index, dfwind["speed"], s=4, c="black",
                        label="Wind speed\n[m/s]")
             ax.set_ylabel("Wind speed\n[m/s]")
             ax.set_yticks([0, 7, 14])
             ax.spines["left"].set_bounds(0, 14)
-            ax.legend(loc="center left",
-                      bbox_to_anchor=(-0.155, 0.65), frameon=False)
+            ax.legend(loc="center left", markerscale=5,
+                      bbox_to_anchor=(-0.275, 0.65), frameon=False)
+            ax.spines["right"].set_visible(False)
             ax = ax.twinx()
             ax.scatter(dfwind.index, dfwind["direction"],
-                       marker="x", label="Wind direction\n[degrees]")
-            ax.set_ylabel("Wind direction\n[degrees]")
+                       marker="x", label="Wind\ndirection [ ° ]")
+            ax.set_ylabel("Wind direction [ ° ]")
             ax.set_yticks([0, 90, 180, 270, 360])
-            ax.legend(loc="center left",
-                      bbox_to_anchor=(-0.155, 0.35), frameon=False)
-            ax.spines["right"].set_bounds(0, 360)
+            ax.legend(loc="center left", markerscale=5,
+                      bbox_to_anchor=(-0.275, 0.35), frameon=False)
+            # ax.spines["right"].set_bounds(0, 360)
             ax.xaxis.set_visible(False)
-            ax.spines["right"].set_position(("outward", 15))
+            # ax.spines["right"].set_position(("outward", 15))
             ax.spines["top"].set_visible(False)
             ax.spines["bottom"].set_visible(False)
             ax.spines["left"].set_visible(False)
@@ -462,12 +656,17 @@ class Signature1000(ADCP):
             df_sen = self.wd[self.wd.index.week == week]
             ax.plot(df_sen.index, df_sen["Temperature"])
             ax.set_ylabel("Temperature [°C]")
+            ax.legend(loc="center left", markerscale=5,
+                      bbox_to_anchor=(-0.275, 0.65), frameon=False)
+            ax.set_ylim(0, 35)
             # Water depth
             ax = ax.twinx()
             ax.plot(df_sen.index, df_sen["WaterDepth"], linestyle=":",
                     color="black", label="Water Depth [m]")
             ax.set_ylabel("Water depth [m]")
             ax.set_ylim(bottom=0, top=self.wd["WaterDepth"].max())
+            ax.legend(loc="center left", markerscale=5,
+                      bbox_to_anchor=(-0.275, 0.45), frameon=False)
             # Velocity magnitude & direction
             ax = axes[2]
             ax1 = axes[3]
@@ -475,28 +674,37 @@ class Signature1000(ADCP):
             subdf = df.loc[pd.IndexSlice[:, levels[0]], :]
             subdf.index = subdf.index.droplevel(level=1)  # drop height
             ax.plot(subdf.index, subdf["Vel_Mag"],
-                    color="blue", label='%.1f mab' % levels[0])
+                    color="blue", label='%.1f m hah' % levels[0])
             ax1.scatter(subdf.index, subdf["Vel_Dir_TN"],
-                        color="blue", label='%.1f mab' % levels[0], s=3)
+                        color="blue", label='%.1f m hah' % levels[0], s=3)
             subdf = df.loc[pd.IndexSlice[:, levels[1]], :]
             subdf.index = subdf.index.droplevel(level=1)  # drop height
             ax.plot(subdf.index, subdf["Vel_Mag"],
-                    color="red", label='%.1f mab' % levels[1])
+                    color="red", label='%.1f m hah' % levels[1])
             ax1.scatter(subdf.index, subdf["Vel_Dir_TN"],
-                        color="red", label='%.1f mab' % levels[1], s=3)
+                        color="red", label='%.1f m hah' % levels[1], s=3)
             subdf = df.loc[pd.IndexSlice[:, levels[2]], :]
             subdf.index = subdf.index.droplevel(level=1)  # drop height
             ax.plot(subdf.index, subdf["Vel_Mag"],
-                    color="green", label='%.1f mab' % levels[2])
+                    color="green", label='%.1f m hah' % levels[2])
             ax1.scatter(subdf.index, subdf["Vel_Dir_TN"],
-                        color="green", label='%.1f mab' % levels[2], s=3)
-            ax.legend(loc="center left",
-                      bbox_to_anchor=(-0.155, 0.65), frameon=False)
-            ax1.legend(loc="center left",
-                       bbox_to_anchor=(-0.155, 0.65), frameon=False)
+                        color="green", label='%.1f m hah' % levels[2], s=3)
+            ax1.set_yticks([0, 90, 180, 270, 360])
+            ax.legend(loc="center left", markerscale=5,
+                      bbox_to_anchor=(-0.275, 0.65), frameon=False)
+            ax1.legend(loc="center left", markerscale=5,
+                       bbox_to_anchor=(-0.275, 0.65), frameon=False)
             ax.set_ylabel("Velocity\nspeed [m/s]")
-            ax1.set_ylabel("Velocity\ndir. [°C]")
-            fig.suptitle("%s - Week %s" % (str(self), i + 1))
+            # ax.set_ylim(0, df["Vel_Mag"].max() + 0.05)
+            ax.set_yticks([0, 0.2, 0.4, 0.6])
+            ax1.set_xlabel("Date")
+            ax1.set_ylabel("Velocity\ndirection [ ° ]")
+            fig.subplots_adjust(top=0.971,
+                                bottom=0.05,
+                                left=0.204,
+                                right=0.934,
+                                hspace=0.2,
+                                wspace=0.2)
             i += 1
 
 
@@ -628,10 +836,14 @@ class Aquadopp(ADCP):
             fig.suptitle("%s - %s" % (str(self), a))
 
     def plot_velocity(self):
+        sns.set_style("ticks")
+        plotter.set_font_sizes()
         for v in self.VARS[-3:]:
-            fig, axes = plt.subplots(ncols=1, nrows=4, figsize=(28, 4))
+            fig, axes = plt.subplots(ncols=1, nrows=4, figsize=(18, 12))
             cbar_ax = fig.add_axes([0.935, .108, .01, .75])
             cbar_ax.set_ylabel("Velocity [m/s]")
+            vmax = self.df[v].abs().max()
+            vmin = -vmax
             i = 0
             weeks = self.df.index.get_level_values('Date').week
             for week, df in self.df.groupby(weeks):
@@ -644,12 +856,12 @@ class Aquadopp(ADCP):
                 # .fillna(0)
                 sns.heatmap(
                     dfamp.transpose(), cmap='RdYlBu_r',
-                    ax=ax, xticklabels=False, yticklabels=39,
+                    ax=ax, xticklabels=False,
+                    vmin=vmin, vmax=vmax,
                     linewidths=.0,
                     cbar=(i == 0),
                     cbar_ax=cbar_ax if i == 0 else None)
                 ax.invert_yaxis()  # distance from bottom to top
-                ax.set_ylabel("Distance above\nhead [m]")
                 ax.set_ylim(bottom=0)
                 ax.set_xlabel(None)
                 # Water depth
@@ -657,74 +869,59 @@ class Aquadopp(ADCP):
                 wd_df.index = wd_df.index.strftime("%d-%m %H:%M")
                 ax1.plot(wd_df.index, wd_df["WaterDepth"],
                          color="black", label="Water Depth [m]")
-                ax1.set_ylabel("Water depth [m]")
+                if i == 2:
+                    ax.set_ylabel("Height above instrument head [m]")
+                    ax.yaxis.set_label_coords(-0.0275, 1.05)
+                    ax1.set_ylabel("Water depth [m]")
+                    ax1.yaxis.set_label_coords(1.0175, 1.05)
+                    plt.text(1.085, 1.45, "Velocity [m/s]", size=20, rotation=90., transform=ax.transAxes)
+                else:
+                    ax.set_ylabel(None)
+                    ax1.set_ylabel(None)
                 ax1.set_ylim(bottom=0, top=self.HEIGHTS[-1])
                 ax1.xaxis.set_ticks(
                     np.arange(72, wd_df.WaterDepth.count() + 1, 72))
                 ax1.set_xlabel(None)
+                if i == 3:
+                    ax.set_xlabel("Date")
+
                 i += 1
-            fig.suptitle("%s - %s" % (str(self), v))
-
-    def plot_asimmetry(self):
-        fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(28, 4))
-
-        # start_date = datetime.strptime("2017-05-17 09:30:00+12:00", DATES_FORMAT + "%z")
-        # end_date = datetime.strptime("2017-05-17 12:10:00+12:00", DATES_FORMAT + "%z")
-        # df_plot = self.df[(self.df.index.get_level_values(0) >= start_date) &
-        #                   (self.df.index.get_level_values(0) < end_date)]
-        # df_plot = self.df.meand(level=)
-        # levels = ADCP_LEVELS[self.site - 1]
-        # subdf = df_plot.loc[pd.IndexSlice[:, levels[0]], :]
-        # subdf.index = subdf.index.droplevel(level=0)  # drop date
-
-        # subdf = subdf.reset_index()
-        # subdf = subdf.set_index('Date')
-        ebb_df = self.df[self.df.Tide == "Ebb"].mean(level=1).reset_index()
-        flood_df = self.df[self.df.Tide == "Flood"].mean(level=1).reset_index()
-        ax.plot(
-            flood_df.Vel_E_TN,
-            flood_df.Height,
-            c="green",
-            label="Flood")
-        ax.plot(
-            ebb_df.Vel_E_TN,
-            ebb_df.Height,
-            c="blue",
-            label="Ebb")
-        # uncomment to show nans as 0
-        # .fillna(0)
-        # ax.invert_yaxis()  # distance from bottom to top
-        ax.set_ylabel("Water depth [m]")
-        ax.set_xlabel("Velocity E")
-        # ax.set_ylim(bottom=0)
-        # ax.set_xlim(self.df.Vel_E_TN.min(), -(self.df.Vel_E_TN.min()))
+            fig.subplots_adjust(top=0.88,
+                                bottom=0.11,
+                                left=0.045,
+                                right=0.9,
+                                hspace=0.2,
+                                wspace=0.2)
+            # fig.suptitle("%s - %s" % (str(self), v))
 
     def plot_magnitude(self):
         dfwindlist = station.get_weekly_wind()
         weeks = self.df.index.get_level_values('Date').week
         i = 0
+        sns.set_style("ticks")
+        plotter.set_font_sizes(False)
         for week, df in self.df.groupby(weeks):
             dfwind = dfwindlist[i]
             fig, axes = plt.subplots(ncols=1, nrows=4,
-                                     figsize=(28, 4), sharex=True)
+                                     figsize=(24, 4), sharex=True)
             ax = axes[0]
             ax.scatter(dfwind.index, dfwind["speed"], s=4, c="black",
                        label="Wind speed\n[m/s]")
             ax.set_ylabel("Wind speed\n[m/s]")
             ax.set_yticks([0, 7, 14])
             ax.spines["left"].set_bounds(0, 14)
-            ax.legend(loc="center left",
-                      bbox_to_anchor=(-0.155, 0.65), frameon=False)
+            ax.legend(loc="center left", markerscale=5,
+                      bbox_to_anchor=(-0.275, 0.65), frameon=False)
             ax = ax.twinx()
             ax.scatter(dfwind.index, dfwind["direction"],
-                       marker="x", label="Wind direction\n[degrees]")
-            ax.set_ylabel("Wind direction\n[degrees]")
+                       marker="x", label="Wind\ndirection [ ° ]")
+            ax.set_ylabel("Wind direction [ ° ]")
             ax.set_yticks([0, 90, 180, 270, 360])
-            ax.legend(loc="center left",
-                      bbox_to_anchor=(-0.155, 0.35), frameon=False)
+            ax.legend(loc="center left", markerscale=5,
+                      bbox_to_anchor=(-0.275, 0.35), frameon=False)
             ax.spines["right"].set_bounds(0, 360)
             ax.xaxis.set_visible(False)
-            ax.spines["right"].set_position(("outward", 15))
+            # ax.spines["right"].set_position(("outward", 15))
             ax.spines["top"].set_visible(False)
             ax.spines["bottom"].set_visible(False)
             ax.spines["left"].set_visible(False)
@@ -733,6 +930,9 @@ class Aquadopp(ADCP):
             df_sen = self.df_sen[self.df_sen.index.week == week]
             ax.plot(df_sen.index, df_sen["Temperature"])
             ax.set_ylabel("Temperature [°C]")
+            ax.set_ylim(0, 35)
+            ax.legend(loc="center left", markerscale=5,
+                      bbox_to_anchor=(-0.275, 0.65), frameon=False)
             # Water depth
             ax = ax.twinx()
             wd_df = self.wd[self.wd.index.week == week]
@@ -740,7 +940,9 @@ class Aquadopp(ADCP):
             ax.plot(wd_df.index, wd_df["WaterDepth"], linestyle=":",
                     color="black", label="Water Depth [m]")
             ax.set_ylabel("Water depth [m]")
-            ax.set_ylim(bottom=0, top=self.wd["WaterDepth"].max())
+            ax.set_ylim(0, self.wd["WaterDepth"].max())
+            ax.legend(loc="center left", markerscale=5,
+                      bbox_to_anchor=(-0.275, 0.45), frameon=False)
             # Velocity magnitude & direction
             ax = axes[2]
             ax1 = axes[3]
@@ -748,26 +950,35 @@ class Aquadopp(ADCP):
             subdf = df.loc[pd.IndexSlice[:, levels[0]], :]
             subdf.index = subdf.index.droplevel(level=1)  # drop height
             ax.plot(subdf.index, subdf["Vel_Mag"],
-                    color="blue", label='%.1f mab' % levels[0])
+                    color="blue", label='%.1f m hah' % levels[0])
             ax1.scatter(subdf.index, subdf["Vel_Dir_TN"],
-                        color="blue", label='%.1f mab' % levels[0], s=3)
+                        color="blue", label='%.1f m hah' % levels[0], s=3)
             subdf = df.loc[pd.IndexSlice[:, levels[1]], :]
             subdf.index = subdf.index.droplevel(level=1)  # drop height
             ax.plot(subdf.index, subdf["Vel_Mag"],
-                    color="red", label='%.1f mab' % levels[1])
+                    color="red", label='%.1f m hah' % levels[1])
             ax1.scatter(subdf.index, subdf["Vel_Dir_TN"],
-                        color="red", label='%.1f mab' % levels[1], s=3)
+                        color="red", label='%.1f m hah' % levels[1], s=3)
             subdf = df.loc[pd.IndexSlice[:, levels[2]], :]
             subdf.index = subdf.index.droplevel(level=1)  # drop height
             ax.plot(subdf.index, subdf["Vel_Mag"],
-                    color="green", label='%.1f mab' % levels[2])
+                    color="green", label='%.1f m hah' % levels[2])
             ax1.scatter(subdf.index, subdf["Vel_Dir_TN"],
-                        color="green", label='%.1f mab' % levels[2], s=3)
-            ax.legend(loc="center left",
-                      bbox_to_anchor=(-0.155, 0.65), frameon=False)
-            ax1.legend(loc="center left",
-                       bbox_to_anchor=(-0.155, 0.65), frameon=False)
+                        color="green", label='%.1f m hah' % levels[2], s=3)
+            ax1.set_yticks([0, 90, 180, 270, 360])
+            ax.legend(loc="center left", markerscale=5,
+                      bbox_to_anchor=(-0.275, 0.65), frameon=False)
+            ax1.legend(loc="center left", markerscale=5,
+                       bbox_to_anchor=(-0.275, 0.65), frameon=False)
             ax.set_ylabel("Velocity\nspeed [m/s]")
-            ax1.set_ylabel("Velocity\ndir. [°C]")
-            fig.suptitle("%s - Week %s" % (str(self), i + 1))
+            # ax.set_ylim(0, df["Vel_Mag"].max() + 0.05)
+            ax.set_yticks([0, 0.2, 0.4, 0.6])
+            ax1.set_xlabel("Date")
+            ax1.set_ylabel("Velocity\ndirection [ ° ]")
+            fig.subplots_adjust(top=0.971,
+                                bottom=0.06,
+                                left=0.204,
+                                right=0.934,
+                                hspace=0.2,
+                                wspace=0.2)
             i += 1
