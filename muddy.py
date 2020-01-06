@@ -167,7 +167,6 @@ class Muddy(object):
         start = PRESO_DATES["start"]
         end = PRESO_DATES["end"]
         title = "%s Event from %s to %s" % (dtype, start, end)
-        # fluxes = []
         floaters = []
         devs_dfs = []
         for d in devs:
@@ -179,12 +178,50 @@ class Muddy(object):
             floaters.append(dfl)
             devs_dfs.append(d.df_avg[(d.df_avg.index >= start) &
                                      (d.df_avg.index < end)])
-            # dflux = encoder.get_flux_df(d.site)
-            # fluxes.append(dflux[(dflux.index >= start) & (dflux.index < end)])
         dfwind = station.get_wind(start=start, end=end)
         dfrain = station.get_rainfall(start=start, end=end)
         dfpress = station.get_pressure(start=start, end=end)
-        plotter.plot_presentation_ssc_event(devs_dfs, floaters, dfwind, dfrain, dfpress, title)
+        plotter.plot_presentation_ssc_event(
+            devs_dfs, floaters, dfwind, dfrain, dfpress, title)
+
+    def presentation_flux_event(self, dtype="bedframe"):
+        # Fluxes series
+        start = PRESO_DATES["start"]
+        end = PRESO_DATES["end"]
+        title = "%s Event from %s to %s" % (dtype, start, end)
+        fluxes = []
+        devs_dfs = []
+        for d in devs:
+            devs_dfs.append(d.df_avg[(d.df_avg.index >= start) &
+                                     (d.df_avg.index < end)])
+            dflux = encoder.get_flux_df(d.site)
+            dfflux = dflux[(dflux.index >= start) & (dflux.index < end)]
+            fluxes.append(dfflux)
+            print(dfflux.Q.max())
+        rivers = station.get_rivers(start=start, end=end)
+        dfwind = station.get_wind(start=start, end=end)
+        dfrain = station.get_rainfall(start=start, end=end)
+        dfpress = station.get_pressure(start=start, end=end)
+        plotter.plot_presentation_fluxes_event(
+            devs_dfs, fluxes, dfwind, dfrain, dfpress, rivers, title)
+
+    def presentation_currents_event(self, start, end):
+        # Fluxes series
+        if start is None:
+            start = PRESO_DATES["start"]
+        if end is None:
+            end = PRESO_DATES["end"]
+        rivers = station.get_rivers(start=start, end=end)
+        dfwind = station.get_wind(start=start, end=end)
+        dfrain = station.get_rainfall(start=start, end=end)
+        dfpress = station.get_pressure(start=start, end=end)
+        dfadcps = []
+        for adcp in adcps:
+            df = adcp.df[(adcp.df.index.get_level_values(0) >= start) &
+                         (adcp.df.index.get_level_values(0) < end)]
+            dfadcps.append(df)
+        plotter.plot_velocities_series(
+            dfadcps, dfwind, dfrain, dfpress, rivers)
 
     def stats(self):
         stats.basic_stats().to_csv('./data/stats.csv')

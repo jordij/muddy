@@ -18,7 +18,7 @@ def calc_fluxes(adcps):
             adcp.df,
             site,
             adcp.HEIGHTS[0:2],
-            save=False,
+            save=True,
             method="bedframe")
 
 

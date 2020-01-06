@@ -8,10 +8,11 @@ import pandas as pd
 import seaborn as sns
 from collections import OrderedDict
 from pandas.plotting import register_matplotlib_converters
+from scipy.stats import linregress
 from windrose import plot_windrose
 
 from tools import encoder, plot_constants
-from constants import OUTPUT_PATH, VARIABLES, INST_TYPES
+from constants import OUTPUT_PATH, VARIABLES, INST_TYPES, ADCP_LEVELS
 
 register_matplotlib_converters()
 
@@ -30,6 +31,10 @@ def plot_obs_calibration():
                 label=d.site,
                 marker="o",
                 c=plot_constants.colours[d.site])
+            # Linear regression to check fit
+            print("Linear regression results for %s %s" % (t, d.site))
+            (s, interc, rval, pval, stderr) = linregress(d.T, d.SSC)
+            print(rval**2)
         axes[i].set(xlabel="Turbidity [NTU]", ylabel="SSC [mg/L]")
         axes[i].spines["top"].set_visible(False)
         axes[i].spines["right"].set_visible(False)
@@ -639,7 +644,8 @@ def plot_event(title, dfrain, dfrivers, dfpressure, dfwind, df, dfl):
     # gc.collect()
 
 
-def plot_presentation_ssc_event(devs, floaters, dfwind, dfrain, dfpress, title):
+def plot_presentation_ssc_event(devs, floaters,
+                                dfwind, dfrain, dfpress, title):
     sns.set(rc={"figure.figsize": (30, 15)})
     sns.set_style("ticks")
     set_font_sizes(big=False)
@@ -666,14 +672,14 @@ def plot_presentation_ssc_event(devs, floaters, dfwind, dfrain, dfpress, title):
 
     # Wind
     ax = axes[1]
-    ax.scatter(dfwind.index, dfwind["speed"], s=10, c="black",
-               label="Wind\nspeed\n[m/s]")
+    ax.scatter(dfwind.index, dfwind["speed"], s=30, c="black",
+               label="Wind speed [m/s]")
     ax.set_ylabel("Wind\nspeed\n[m/s]")
     ax.set_yticks([0, 7, 14])
     ax.spines["left"].set_bounds(0, 14)
     ax = ax.twinx()
-    ax.scatter(dfwind.index, dfwind["direction"], s=15,
-               marker="x", label="Wind\ndirection\n[°]")
+    ax.scatter(dfwind.index, dfwind["direction"], s=30,
+               marker="x", label="Wind direction [°]")
     ax.set_ylabel("Wind\n direction\n[°]")
     ax.set_yticks([0, 90, 180, 270, 360])
 
@@ -683,20 +689,21 @@ def plot_presentation_ssc_event(devs, floaters, dfwind, dfrain, dfpress, title):
         axes[i].plot(
             d.index,
             d["u"],
-            label="Wave orbital velocity [cm/s]",
+            label="Wave orbital velocity [cm/s]" if i == 2 else "_",
             c="green")
         axes[i].set_ylim(0, math.ceil(u_max))
-        axes[i].set_yticks([0, 45])
+        axes[i].set_yticks([0, 30])
+        # axes[i].set_yticks([0, 50, 100])
         axes[i].spines["top"].set_visible(False)
         axes[i].set_ylabel("Usig [cm/s]")
 
         wov = axes[i].twinx()
-        wov.set_ylim(0, 1)
-        wov.set_yticks([0, 1])
+        wov.set_ylim(0, 0.2)
+        wov.set_yticks([0, 0.2])
         wov.plot(
             d.index,
             d["H"],
-            label="H [m]",
+            label="H [m]" if i == 2 else "_",
             c="blue")
         wov.spines["top"].set_visible(False)
         wov.set_ylabel("H [m]")
@@ -711,25 +718,27 @@ def plot_presentation_ssc_event(devs, floaters, dfwind, dfrain, dfpress, title):
             d.index,
             d["depth_00"],
             linestyle="--",
+            label="h [m]" if i == 2 else "_",
             c="black")
         wd.set_ylabel("h [m]")
 
         conc = axes[i].twinx()
-        # conc.tick_params(axis='y', which='right', labelleft=False, labelright=True)
         conc.spines["right"].set_position(("outward", 160))
-        conc.set_yticks([0, 200])
-        conc.set_ylim(-5, 225)
+        conc.set_yticks([0, 150])
+        conc.set_ylim(-5, 160)
+        # conc.set_yticks([0, 1000, 2000, 3000])
+        # conc.set_ylim(-5, 3800)
         conc.scatter(
             d.index,
             d.ssc,
-            label="SSC - bed [mg/L]",
+            label="SSC - bed [mg/L]" if i == 2 else "_",
             c="blue",
-            s=10)
+            s=20)
         if floater is not None:
             conc.scatter(
                 floater.index,
                 floater.ssc,
-                label="SSC - surface [mg/L]",
+                label="SSC - surface [mg/L]" if i == 2 else "_",
                 c="red",
                 s=20)
         conc.set_ylabel("SSC\n[mg/L]")
@@ -742,13 +751,262 @@ def plot_presentation_ssc_event(devs, floaters, dfwind, dfrain, dfpress, title):
     fig.subplots_adjust(
         left=0.065,
         right=0.815,
+        bottom=0.155,
+        top=0.985,
+        hspace=0.165,
     )
+    fig.legend(ncol=5, loc='lower center', markerscale=4, frameon=False)
     fig.savefig("./supertest.png", dpi=300)
-    # ax.yaxis.set_label_coords(-0.035, 1.1)
-    # ax.legend(title="Sites")
-    # fig.suptitle(title)
-    # fig.show()
-    # gc.collect()
+
+
+def plot_presentation_fluxes_event(
+        devs, fluxes, dfwind, dfrain, dfpress, rivers, title):
+    sns.set(rc={"figure.figsize": (30, 15)})
+    sns.set_style("ticks")
+    set_font_sizes(big=False)
+    u_max = max([d["u"].max() for d in devs])
+    depth_max = max([d["depth_00"].max() for d in devs])
+    fig, axes = plt.subplots(ncols=1, nrows=3+len(devs), sharex=True)
+    # Rivers discharge
+    ax = axes[0]
+    river_colors = ["orange", "darkviolet", "maroon"]
+    i = 0
+    for key, dfriver in rivers.items():
+        ax.plot(dfriver.index, dfriver.Flow,
+                label="%s discharge [m^3/s]" % key,
+                c=river_colors[i])
+        i += 1
+    ax.set_ylabel("Flow\ndischarge\n[m^3/s]")
+    ax.set_ylim(0, None)
+    # Pressure + rain
+    ax = axes[1]
+    ax.bar(dfrain.index, dfrain.amount.replace(0, np.nan),
+           width=0.025, label="Rainfall [mm]")
+    ax.set_ylabel("Rainfall\n[mm]")
+    ax.set_yticks([0, 5, 10, 15])
+    ax.spines["left"].set_bounds(-1, 16)
+    ax = ax.twinx()
+    ax.plot(dfpress.index, dfpress["Atmospheric pressure"],
+            label="P [mbar]")
+    ax.set_ylabel("P [mbar]")
+    ax.set_yticks([1006, 1019, 1032])
+    ax.spines["right"].set_bounds(1006, 1032)
+    ax.spines["top"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+    ax.spines["left"].set_visible(False)
+
+    # Wind
+    ax = axes[2]
+    ax.scatter(dfwind.index, dfwind["speed"], s=30, c="black",
+               label="Wind speed [m/s]")
+    ax.set_ylabel("Wind\nspeed\n[m/s]")
+    ax.set_yticks([0, 7, 14])
+    ax.spines["left"].set_bounds(0, 14)
+    ax = ax.twinx()
+    ax.scatter(dfwind.index, dfwind["direction"], s=30,
+               marker="x", label="Wind direction [°]")
+    ax.set_ylabel("Wind\n direction\n[°]")
+    ax.set_yticks([0, 90, 180, 270, 360])
+
+    i = 3
+    for d in devs:
+        flux = fluxes[i-3]
+        axes[i].scatter(
+            flux.index,
+            flux.Q_dir,
+            marker="x",
+            s=15,
+            label="Q direction [cm/s]" if i == 3 else "_",
+            c="green")
+        axes[i].set_yticks([0, 90, 180, 270, 360])
+        axes[i].spines["top"].set_visible(False)
+        axes[i].set_ylabel("Q direction\n[°]")
+
+        wov = axes[i].twinx()
+        wov.set_ylim(0, 1)
+        wov.set_yticks([0, 1])
+        wov.plot(
+            d.index,
+            d["H"],
+            label="H [m]" if i == 3 else "_",
+            c="blue")
+        wov.spines["top"].set_visible(False)
+        wov.set_ylabel("H [m]")
+
+        wd = axes[i].twinx()
+        wd.tick_params(axis='y', which='right',
+                       labelleft=False, labelright=True)
+        wd.set_ylim(0, 5.5)
+        wd.set_yticks([0, 5.5])
+        wd.spines["top"].set_visible(False)
+        wd.spines["right"].set_position(("outward", 80))
+        wd.plot(
+            d.index,
+            d["depth_00"],
+            linestyle="--",
+            label="h [m]" if i == 3 else "_",
+            c="black")
+        wd.set_ylabel("h [m]")
+
+        conc = axes[i].twinx()
+        conc.spines["right"].set_position(("outward", 160))
+        conc.set_yticks([0.00, 0.05, 0.1])
+        conc.set_ylim(-0.01, 0.15)
+        conc.scatter(
+            flux.index,
+            flux.Q,
+            label="Q [kg/m^3/s]" if i == 3 else "_",
+            c="chocolate",
+            s=10)
+        conc.set_ylabel("Q\n[kg/m^3/s]")
+        i += 1
+    axes[5].xaxis.set_major_locator(mdates.HourLocator(interval=12))
+    axes[5].xaxis.set_major_formatter(mdates.DateFormatter("%d-%m %Hh",
+                                      tz=devs[2].index.tz))
+    axes[7].set_xlabel("Date")
+    fig.subplots_adjust(
+        left=0.065,
+        right=0.815,
+        bottom=0.155,
+        top=0.985,
+        hspace=0.165,
+    )
+    fig.legend(ncol=5, loc='lower center', markerscale=4, frameon=False)
+    fig.savefig("./supertest.png", dpi=300)
+
+
+def plot_velocities_series(dfadcps, dfwind, dfrain, dfpress, rivers):
+    sns.set(rc={"figure.figsize": (30, 15)})
+    sns.set_style("ticks")
+    set_font_sizes(big=False)
+    fig, axes = plt.subplots(ncols=1, nrows=3+len(dfadcps), sharex=True)
+
+    # Rivers discharge
+    ax = axes[0]
+    river_colors = ["orange", "darkviolet", "maroon"]
+    i = 0
+    for key, dfriver in rivers.items():
+        ax.plot(dfriver.index, dfriver.Flow,
+                label="%s discharge [m^3/s]" % key,
+                c=river_colors[i])
+        i += 1
+    ax.set_ylabel("Flow\ndischarge\n[m^3/s]")
+    ax.set_ylim(0, None)
+
+    # Pressure + rain
+    ax = axes[1]
+    ax.bar(dfrain.index, dfrain.amount.replace(0, np.nan),
+           width=0.025, label="Rainfall [mm]")
+    ax.set_ylabel("Rainfall\n[mm]")
+    ax.set_yticks([0, 5, 10, 15])
+    ax.spines["left"].set_bounds(-1, 16)
+    ax = ax.twinx()
+    ax.plot(dfpress.index, dfpress["Atmospheric pressure"],
+            label="P [mbar]")
+    ax.set_ylabel("P [mbar]")
+    ax.set_yticks([1006, 1019, 1032])
+    ax.spines["right"].set_bounds(1006, 1032)
+    ax.spines["top"].set_visible(False)
+    ax.spines["bottom"].set_visible(False)
+    ax.spines["left"].set_visible(False)
+
+    # Wind
+    ax = axes[2]
+    ax.scatter(dfwind.index, dfwind["speed"], s=30, c="black",
+               label="Wind speed [m/s]")
+    ax.set_ylabel("Wind\nspeed\n[m/s]")
+    ax.set_yticks([0, 7, 14])
+    ax.spines["left"].set_bounds(0, 14)
+    ax = ax.twinx()
+    ax.scatter(dfwind.index, dfwind["direction"], s=30,
+               marker="x", label="Wind direction [°]")
+    ax.set_ylabel("Wind\n direction\n[°]")
+    ax.set_yticks([0, 90, 180, 270, 360])
+
+    i = 3
+    for df in dfadcps:
+        ax = axes[i]
+        ax1 = ax.twinx()
+
+        # Get levels values only
+        levels = ADCP_LEVELS[i - 3]
+        subdf = df.loc[pd.IndexSlice[:, levels[0]], :]
+        subdf.index = subdf.index.droplevel(level=1)  # drop height
+        ax.plot(subdf.index, subdf["Vel_Mag"],
+                color="blue", label='%.1f m hah' % levels[0])
+        ax1.scatter(subdf.index, subdf["Vel_Dir_TN"], marker="x",
+                    color="blue", label='%.1f m hah' % levels[0], s=20)
+        print(subdf["Vel_Mag"].max())
+
+        subdf = df.loc[pd.IndexSlice[:, levels[1]], :]
+        subdf.index = subdf.index.droplevel(level=1)  # drop height
+        ax.plot(subdf.index, subdf["Vel_Mag"],
+                color="red", label='%.1f m hah' % levels[1])
+        ax1.scatter(subdf.index, subdf["Vel_Dir_TN"], marker="x",
+                    color="red", label='%.1f m hah' % levels[1], s=20)
+        print(subdf["Vel_Mag"].max())
+
+        subdf = df.loc[pd.IndexSlice[:, levels[2]], :]
+        subdf.index = subdf.index.droplevel(level=1)  # drop height
+        ax.plot(subdf.index, subdf["Vel_Mag"],
+                color="green", label='%.1f m hah' % levels[2])
+        ax1.scatter(subdf.index, subdf["Vel_Dir_TN"], marker="x",
+                    color="green", label='%.1f m hah' % levels[2], s=20)
+        print(subdf["Vel_Mag"].max())
+
+        ax1.set_yticks([0, 90, 180, 270, 360])
+        ax1.set_ylim(-5, 365)
+        ax1.set_ylabel("Velocity\ndirection [°]")
+
+        ax.set_ylabel("Velocity\nspeed [m/s]")
+        ax.set_ylim(0, df["Vel_Mag"].max() + 0.05)
+        ax.set_yticks([0, 0.2, 0.4, 0.6])
+
+        wd = ax.twinx()
+        wd.tick_params(axis='y', which='right',
+                       labelleft=False, labelright=True)
+        wd.set_ylim(0, 7)
+        wd.set_yticks([0, 5])
+        wd.spines["top"].set_visible(False)
+        wd.spines["right"].set_position(("outward", 90))
+        wd.plot(
+            subdf.index,
+            subdf["WaterDepth"],
+            linestyle="--",
+            label="h [m]" if i == 3 else "_",
+            c="black")
+        wd.set_ylabel("h [m]")
+        print(subdf["WaterDepth"].max())
+        print("depth")
+        ax.legend(
+            loc="center left", frameon=False,
+            bbox_to_anchor=(1.075, 0.7), markerscale=2)
+        ax1.legend(
+            loc="center left", frameon=False,
+            bbox_to_anchor=(1.075, 0.7), markerscale=2)
+
+        i += 1
+
+    delta = pd.Timedelta(
+                df.index.get_level_values(0)[-1] -
+                df.index.get_level_values(0)[0]).total_seconds()
+    interval = 3
+    if delta > 3600 * 30:
+        interval = 12
+
+    axes[7].xaxis.set_major_locator(mdates.HourLocator(interval=interval))
+    axes[7].xaxis.set_major_formatter(mdates.DateFormatter("%d-%m %Hh",
+                                      tz=df.index.levels[0].tz))
+    axes[7].set_xlabel("Date")
+    fig.subplots_adjust(
+        left=0.065,
+        right=0.815,
+        bottom=0.155,
+        top=0.985,
+        hspace=0.165,
+    )
+    # fig.legend(ncol=4, loc='lower center', markerscale=4, frameon=False)
+    fig.savefig("./test_currents.png", dpi=300)
 
 
 def plot_event_ssc_series(devices, title):
@@ -792,8 +1050,8 @@ def set_font_sizes(big=True):
         MEDIUM_SIZE = 28
         BIGGER_SIZE = 28
     else:
-        SMALL_SIZE = 14
-        MEDIUM_SIZE = 18
+        SMALL_SIZE = 18
+        MEDIUM_SIZE = 20
         BIGGER_SIZE = 22
 
     plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
@@ -1098,21 +1356,21 @@ def plot_total_fluxes(fluxes):
     i = 0
 
     # SUM
-    # for site in fluxes:
-    #     df = site.groupby(site.index.date)["Q"].sum() # sum or cumsum
-    #     ax.plot(df.index, df.values, '-o', color=colours[i],
-    #             label="Site %d" % (i + 1))
-    #     i += 1
+    for site in fluxes:
+        df = site.groupby(site.index.date)["Q"].sum() # sum or cumsum
+        ax.plot(df.index, df.values, '-o', color=colours[i],
+                label="Site %d" % (i + 1))
+        i += 1
     # ENDSUM
 
     # CUMSUM
-    for site in fluxes:
-        df = site.groupby(site.index.date)["Q"].sum() # sum or cumsum
-        df = pd.DataFrame({"Q": df.values}, index=df.index)
-        df = df.cumsum()
-        ax.plot(df.index, df.Q, '-o', color=colours[i],
-                label="Site %d" % (i + 1))
-        i += 1
+    # for site in fluxes:
+    #     df = site.groupby(site.index.date)["Q"].sum() # sum or cumsum
+    #     df = pd.DataFrame({"Q": df.values}, index=df.index)
+    #     df = df.cumsum()
+    #     ax.plot(df.index, df.Q, '-o', color=colours[i],
+    #             label="Site %d" % (i + 1))
+    #     i += 1
     # ENDCUMSUM
 
     ax.xaxis.set_major_locator(mdates.DayLocator(interval=3))

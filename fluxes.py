@@ -45,7 +45,7 @@ def mean_angle(deg):
         return angle
 
 
-def calc_flux(dfl, dbf, adcp, filename,
+def calc_flux(dfl, dbf, adcp, site,
               heights, save=False, method="bedframe"):
     if method == "average":
         if dfl is not None:  # 1/h * SSC(avg)
@@ -58,24 +58,34 @@ def calc_flux(dfl, dbf, adcp, filename,
         adcp_df = adcp.loc[pd.IndexSlice[:, heights], :]
     else:
         raise ValueError("Unkown method")
-    # Q for N/S and E/W components
-    dbf['U_avg'] = adcp_df.groupby(level=0).Vel_N_TN.mean()
-    dbf['V_avg'] = adcp_df.groupby(level=0).Vel_E_TN.mean()
-    dbf['Vel_Mag'] = adcp_df.groupby(level=0).Vel_Mag.mean()
+    if site == "S4":  # different indexes, get nearest values
+        dbf['U_avg'] = adcp_df.groupby(level=0).Vel_N_TN.mean().reindex(
+            dbf.index, method="nearest")
+        dbf['V_avg'] = adcp_df.groupby(level=0).Vel_E_TN.mean().reindex(
+            dbf.index, method="nearest")
+        dbf['Vel_Mag'] = adcp_df.groupby(level=0).Vel_Mag.mean().reindex(
+                dbf.index, method="nearest")
+        dbf['Q_dir'] = adcp_df.groupby(level=0).apply(mean_Vel_Dir_TN).reindex(
+                dbf.index, method="nearest")
+        dbf['Q_dir'] = dbf['Q_dir'].fillna(1)
+    else:
+        # Q for N/S and E/W components
+        dbf['U_avg'] = adcp_df.groupby(level=0).Vel_N_TN.mean()
+        dbf['V_avg'] = adcp_df.groupby(level=0).Vel_E_TN.mean()
+        dbf['Vel_Mag'] = adcp_df.groupby(level=0).Vel_Mag.mean()
+        dbf['Q_dir'] = adcp_df.groupby(level=0).apply(mean_Vel_Dir_TN)
     dbf['QN'] = dbf['C'] * dbf['U_avg'] * DZ  # kg/m^2/s
     dbf['QE'] = dbf['C'] * dbf['V_avg'] * DZ  # kg/m^2/s
-    # Total Q and direction (degrees)
+    # Total Q
     qn_sq = np.power(dbf['QN'].astype(np.float32), 2)
     qe_sq = np.power(dbf['QE'].astype(np.float32), 2)
     dbf['Q'] = np.sqrt(qn_sq + qe_sq)
-    dbf['Q_dir'] = adcp_df.groupby(level=0).apply(mean_Vel_Dir_TN)
+    if site == "S4":
+        dbf['Q'] = dbf['Q'].fillna(0)
     if save:
         # Save DF in h5 format
-        filename = "%s%s_%s.h5" % (FLUXES_PATH, filename, method)
+        filename = "%s%s_%s.h5" % (FLUXES_PATH, site, method)
         dbf.to_hdf(filename, key="df", mode="w")
-        print(dbf.Q.max())
-        print(dbf.Q.min())
-        print("------")
     else:
-        filename = "%s_%s" % (filename, method)
+        filename = "%s_%s" % (site, method)
         plotter.plot_flux_windrose(dbf, filename)

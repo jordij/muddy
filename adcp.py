@@ -7,7 +7,7 @@ import scipy.io as sio
 import seaborn as sns
 import itertools
 from constants import (TIMEZONE, ADCP_DATES, DATES_FORMAT,
-                       CALM_TIDES, STORM_TIDES)
+                       CALM_TIDES, STORM_TIDES, ADCP_LEVELS)
 from datetime import datetime
 from pandas.plotting import register_matplotlib_converters
 from intervals import STORM_INTERVALS, CALM_INTERVALS
@@ -22,13 +22,7 @@ FILEPATH = "./data/Currents/ADCP/"  # relative
 INTERVAL = 600  # secs
 
 AQUADOPPS_SENS = ["A243401", "EXTIKI02", "HR02"]
-ADCP_LEVELS = [  # levels per site
-    [0.3, 0.5, 0.7],
-    [0.3, 0.6, 1.1],
-    [0.3, 1, 2],
-    [0.6, 1.4, 2.7],
-    [1.27, 3.02, 4.52],
-]
+
 ADCP_A1_LEVELS = [  # anything with a1 lower than these values is removed
     80,
     None,
@@ -439,9 +433,111 @@ class Signature1000(ADCP):
     AMPLITUDES = ['a1', 'a2', 'a3', 'a4']
     HEIGHTS = np.linspace(0.6, 8.2, 38).round(1)
 
+    def __init__(self, site):
+        folder = "Site{0}/FoT_Signature1000_S{0}_BurstStats_noQC.mat".format(
+            site)
+        datafile = os.path.join(FILEPATH, folder)
+        ml_data = sio.loadmat(datafile)["BurstStats"]
+        self.site = site
+        # MATLAB datenum to Python
+        timestamps = []
+        timestamps.append(
+            pd.to_datetime(ml_data["Time"][0][0][0][0]-719529, unit='D'))
+        # round to 00.00 secs
+        timestamps[0] = timestamps[0] - pd.Timedelta(
+            microseconds=timestamps[0].microsecond)
+        timestamps[0] = timestamps[0] - pd.Timedelta(
+            nanoseconds=timestamps[0].nanosecond)
+        # fill vars and timestamps from ml_data
+        df_vars = {}
+        for v in self.VARS:
+            df_vars[v] = []
+        for j in range(0, len(ml_data["Vel_E_TN"][0][0][0])):
+            for v in self.VARS:
+                df_vars[v].append(ml_data[v][0][0][0][j])
+        wd = [ml_data["Burst_Pressure"][0][0][0][0]]
+        wt = [ml_data["Burst_Temperature"][0][0][0][0]]
+        for i in range(1, len(ml_data["Time"][0][0])):
+            t = pd.to_datetime(ml_data["Time"][0][0][i][0]-719529, unit='D')
+            t = t - pd.Timedelta(microseconds=t.microsecond)
+            t = t - pd.Timedelta(nanoseconds=t.nanosecond)
+            timestamps.append(t)
+            wd.append(ml_data["Burst_Pressure"][0][0][i][0])
+            wt.append(ml_data["Burst_Temperature"][0][0][i][0])
+
+            for j in range(0, len(ml_data["Vel_E_TN"][0][0][i])):
+                for v in self.VARS:
+                    df_vars[v].append(ml_data[v][0][0][i][j])
+
+        wd = pd.DataFrame(
+            {"WaterDepth": wd, 'Temperature': wt},
+            index=timestamps,
+            columns=["WaterDepth", "Temperature"])
+        wd = wd[ADCP_DATES["start"]:ADCP_DATES["end"]]
+        wd.index.name = "Date"
+        wd.index = wd.index.tz_localize(TIMEZONE)
+        self.wd = wd
+        # set tide depending on water depth
+        self._set_tide()
+        # Main dataframe
+        index = list(itertools.product(timestamps, self.HEIGHTS))
+        indx = pd.MultiIndex.from_tuples(index, names=['Date', 'Height'])
+        df = pd.DataFrame(df_vars, indx, self.VARS)
+        df = df.tz_localize(TIMEZONE, level=0)
+        df[self.AMPLITUDES] = pd.DataFrame(
+            df.Burst_Amplitude_Beam.values.tolist(), index=df.index)
+        df = df.drop(columns="Burst_Amplitude_Beam")
+        df = df[(df.index.get_level_values(0) >= ADCP_DATES["start"]) &
+                (df.index.get_level_values(0) <= ADCP_DATES["end"])]
+        self.df = df.join(self.wd, how="left")
+        # clean data
+        if ADCP_A1_LEVELS[self.site - 1] is not None:
+            vars_nan = self.VARS[-(len(self.VARS)-1):] + self.AMPLITUDES
+            self.df.loc[self.df.a1 < ADCP_A1_LEVELS[self.site - 1],
+                        vars_nan] = np.NaN
+        self.clean_by_hah()
+
+    def clean_by_hah(self, threshold=1, min_hah=0.8):
+        # agressive cleanup
+        vars_nan = self.VARS[-(len(self.VARS)-1):] + self.AMPLITUDES
+        lower_idx = list(filter(lambda x: x > min_hah,
+                                self.HEIGHTS))
+        self.df["OutOfWater"] = self.df.apply(
+            lambda r: ((r.WaterDepth - r.name[1]) < threshold) and (r.name[1] > min_hah),  # depth - hah
+            axis=1)
+        r_df = self.df.reset_index()
+        r_df.loc[
+            ((r_df.Height > min_hah) & (r_df.OutOfWater)),
+            vars_nan] = np.NaN
+        r_df.loc[
+            ((r_df.IBurst_Correlation_Beam < 50) & (r_df.Height <= min_hah)),
+            vars_nan] = np.NaN
+        self.df = r_df.set_index(['Date', 'Height'])
+
+    def clean_by_correlation(self):
+        self.df["Corr"] = self.df.apply(
+                lambda r: r.IBurst_Correlation_Beam < 80,
+                axis=1)
+        self.df["minHeight"] = self.df.apply(
+                lambda r: self.df.loc[
+                    r.name[0], ].query("Corr == True").index.min(),
+                axis=1)
+        vars_nan = self.VARS[-(len(self.VARS)-1):] + self.AMPLITUDES
+        df_grouped = self.df.groupby("Date")
+        for d, df in df_grouped:
+            # df[(df.index.get_level_values("Height") > df.minHeight.min()),
+            #     vars_nan] = np.NaN
+            lower_idx = list(filter(lambda x: x > df.minHeight.min(),
+                                    self.HEIGHTS))
+            self.df.loc[(d, lower_idx), vars_nan] = np.NaN
+            # self.df = self.df.update(df, overwrite=True)
+
+    def __str__(self):
+        return "Signature1000 %s" % self.site
+
     def plot_velocity(self):
         sns.set_style("ticks")
-        plotter.set_font_sizes()
+        plotter.set_font_sizes(big=False)
         for v in ['Vel_E_TN', 'Vel_N_TN']:
             fig, axes = plt.subplots(ncols=1, nrows=4, figsize=(18, 12))
             cbar_ax = fig.add_axes([0.9375, .108, .01, .75])
@@ -501,123 +597,6 @@ class Signature1000(ADCP):
                                 right=0.9,
                                 hspace=0.2,
                                 wspace=0.2)
-
-    def __init__(self, site):
-        folder = "Site{0}/FoT_Signature1000_S{0}_BurstStats_noQC.mat".format(
-            site)
-        datafile = os.path.join(FILEPATH, folder)
-        ml_data = sio.loadmat(datafile)["BurstStats"]
-        self.site = site
-        # MATLAB datenum to Python
-        timestamps = []
-        timestamps.append(
-            pd.to_datetime(ml_data["Time"][0][0][0][0]-719529, unit='D'))
-        # round to 00.00 secs
-        timestamps[0] = timestamps[0] - pd.Timedelta(
-            microseconds=timestamps[0].microsecond)
-        timestamps[0] = timestamps[0] - pd.Timedelta(
-            nanoseconds=timestamps[0].nanosecond)
-        for i in range(1, len(ml_data["Time"][0][0])):
-            timestamps.append(timestamps[i-1] + pd.Timedelta("%ss" % INTERVAL))
-
-        # for i in range(1, len(ml_data["Time"][0][0])):
-        #     t = pd.to_datetime(ml_data["Time"][0][0][i][0]-719529, unit='D')
-        #     t = t - pd.Timedelta(microseconds=t.microsecond)
-        #     t = t - pd.Timedelta(nanoseconds=t.nanosecond)
-        #     timestamps.append(t)
-        # Populate vars
-        df_vars = {}
-        for v in self.VARS:
-            df_vars[v] = []
-        for i in range(0, len(ml_data["Vel_E_TN"][0][0])):
-            for j in range(0, len(ml_data["Vel_E_TN"][0][0][i])):
-                for v in self.VARS:
-                    df_vars[v].append(ml_data[v][0][0][i][j])
-        # Water depth
-        wd = [m[0] for m in ml_data["Burst_Pressure"][0][0]]
-        wt = [m[0] for m in ml_data["Burst_Temperature"][0][0]]
-        wd = pd.DataFrame(
-            {"WaterDepth": wd, 'Temperature': wt},
-            index=timestamps,
-            columns=["WaterDepth", "Temperature"])
-        wd = wd[ADCP_DATES["start"]:ADCP_DATES["end"]]
-        wd.index.name = "Date"
-        wd.index = wd.index.tz_localize(TIMEZONE)
-        self.wd = wd
-        # set tide depending on water depth
-        self._set_tide()
-        # Main dataframe
-        index = list(itertools.product(timestamps, self.HEIGHTS))
-        indx = pd.MultiIndex.from_tuples(index, names=['Date', 'Height'])
-        df = pd.DataFrame(df_vars, indx, self.VARS)
-        df = df.tz_localize(TIMEZONE, level=0)
-        df[self.AMPLITUDES] = pd.DataFrame(
-            df.Burst_Amplitude_Beam.values.tolist(), index=df.index)
-        df = df.drop(columns="Burst_Amplitude_Beam")
-        df = df[(df.index.get_level_values(0) >= ADCP_DATES["start"]) &
-                (df.index.get_level_values(0) < ADCP_DATES["end"])]
-        # df = df.loc[ADCP_DATES["start"]:ADCP_DATES["end"]]
-        self.df = df.join(self.wd, how="left")
-        # clean data
-        if ADCP_A1_LEVELS[self.site - 1] is not None:
-            vars_nan = self.VARS[-(len(self.VARS)-1):] + self.AMPLITUDES
-            self.df.loc[self.df.a1 < ADCP_A1_LEVELS[self.site - 1],
-                        vars_nan] = np.NaN
-        self.clean_by_hah()
-        # self.df["OutOfWater"] = self.df.apply(
-        #     lambda r: r.IBurst_Correlation_Beam < 70,
-        #     axis=1)
-        # self.df.loc[self.df.OutOfWater, vars_nan] = np.NaN
-        # self.df["minHeight"] = self.df.apply(
-        #     lambda r: self.df.loc[
-        #         r.name[0], ].query("OutOfWater == True").index.min(),
-        #     axis=1)
-        # too expensive, not good to iterate on DF and perform updates..
-        # for i in self.df.index.get_level_values(0):
-        #     for j in self.df.loc[i].index.get_level_values(0):
-        #         if self.df.loc[i, j].OutOfWater:
-        #             lower_idx = list(filter(lambda x: x > j,
-        #                              self.HEIGHTS))
-        #             self.df.loc[(i, lower_idx), vars_nan] = np.NaN
-
-    def clean_by_hah(self, threshold=1, min_hah=0.8):
-        # agressive cleanup
-        vars_nan = self.VARS[-(len(self.VARS)-1):] + self.AMPLITUDES
-        lower_idx = list(filter(lambda x: x > min_hah,
-                                self.HEIGHTS))
-        self.df["OutOfWater"] = self.df.apply(
-            lambda r: ((r.WaterDepth - r.name[1]) < threshold) and (r.name[1] > min_hah),  # depth - hah
-            axis=1)
-        r_df = self.df.reset_index()
-        # idx = pd.IndexSlice
-        r_df.loc[
-            ((r_df.Height > min_hah) & (r_df.OutOfWater)),
-            vars_nan] = np.NaN
-        r_df.loc[
-            ((r_df.IBurst_Correlation_Beam < 50) & (r_df.Height <= min_hah)),
-            vars_nan] = np.NaN
-        self.df = r_df.set_index(['Date', 'Height'])
-
-    def clean_by_correlation(self):
-        self.df["Corr"] = self.df.apply(
-                lambda r: r.IBurst_Correlation_Beam < 80,
-                axis=1)
-        self.df["minHeight"] = self.df.apply(
-                lambda r: self.df.loc[
-                    r.name[0], ].query("Corr == True").index.min(),
-                axis=1)
-        vars_nan = self.VARS[-(len(self.VARS)-1):] + self.AMPLITUDES
-        df_grouped = self.df.groupby("Date")
-        for d, df in df_grouped:
-            # df[(df.index.get_level_values("Height") > df.minHeight.min()),
-            #     vars_nan] = np.NaN
-            lower_idx = list(filter(lambda x: x > df.minHeight.min(),
-                                    self.HEIGHTS))
-            self.df.loc[(d, lower_idx), vars_nan] = np.NaN
-            # self.df = self.df.update(df, overwrite=True)
-
-    def __str__(self):
-        return "Signature1000 %s" % self.site
 
     def plot_magnitude(self):
         dfwindlist = station.get_weekly_wind()
@@ -700,7 +679,7 @@ class Signature1000(ADCP):
             ax1.set_xlabel("Date")
             ax1.set_ylabel("Velocity\ndirection [ ° ]")
             fig.subplots_adjust(top=0.971,
-                                bottom=0.05,
+                                bottom=0.055,
                                 left=0.204,
                                 right=0.934,
                                 hspace=0.2,
